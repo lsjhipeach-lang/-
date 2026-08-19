@@ -21,7 +21,7 @@
   <link rel="stylesheet" href="pwa.css">
 </head>
 <body>
-  <aside class="sidebar" id="sidebar">
+  <aside class="sidebar" id="sidebar" aria-label="전체 여행 메뉴">
     <a class="brand" href="#" data-page-link="home">
       <span class="brand-mark">S</span>
       <span><b>SAPPORO</b><small>OCT 22—26, 2026</small></span>
@@ -49,6 +49,7 @@
       <p class="sync-state"><i></i><span id="syncText">이 기기에 저장됨</span></p>
     </div>
   </aside>
+  <button class="sidebar-backdrop" id="sidebarBackdrop" aria-label="메뉴 닫기" tabindex="-1"></button>
 
   <main class="app-shell">
     <header class="topbar">

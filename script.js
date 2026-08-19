@@ -229,9 +229,18 @@ function navigate(page){
   const names={home:['TRIP OVERVIEW','여행 대시보드'],schedule:['DAY BY DAY','날짜별 일정'],foliage:['AUTUMN WATCH','단풍 스팟'],food:['FOOD SHORTLIST','맛집 DB'],drinks:['NIGHT ROUTES','술 대시보드'],map:['ALL PLACES','통합 지도'],budget:['TRIP WALLET','경비'],booking:['RESERVATION BOARD','예약 관리'],checklist:['READY TO GO','출발 전 체크리스트']};
   document.querySelector('#pageEyebrow').textContent=names[page][0]; document.querySelector('#pageTitle').textContent=names[page][1];
   document.querySelector('#sidebar').classList.remove('open'); window.scrollTo({top:0,behavior:'smooth'});
-  document.querySelector('#mobileNow').style.display=page==='home'&&innerWidth<=760?'grid':'none';
+  document.querySelector('#mobileNow').classList.toggle('visible',page==='home'&&matchMedia('(max-width: 767px)').matches);
   if(page==='map') setTimeout(()=>{initMainMap();mainMap?.invalidateSize()},80);
   if(page==='drinks') setTimeout(()=>{initSusukinoMap();susukinoMap?.invalidateSize()},80);
+}
+
+function syncResponsiveUI(){
+  const mobile=matchMedia('(max-width: 767px)').matches;
+  const sidebar=document.querySelector('#sidebar');
+  if(!mobile)sidebar.classList.remove('open');
+  document.querySelector('#mobileNow').classList.toggle('visible',mobile&&document.querySelector('#page-home').classList.contains('active'));
+  document.querySelector('#menuButton').setAttribute('aria-expanded',String(mobile&&sidebar.classList.contains('open')));
+  requestAnimationFrame(()=>{mainMap?.invalidateSize();susukinoMap?.invalidateSize()});
 }
 
 function renderStats(){
@@ -399,7 +408,8 @@ function openBookingEditor(){
 
 document.addEventListener('click',e=>{
   const pageBtn=e.target.closest('[data-page],[data-page-link]');if(pageBtn){navigate(pageBtn.dataset.page||pageBtn.dataset.pageLink);return}
-  if(e.target.closest('#menuButton')){document.querySelector('#sidebar').classList.toggle('open');return}
+  if(e.target.closest('#menuButton')){document.querySelector('#sidebar').classList.toggle('open');syncResponsiveUI();return}
+  if(e.target.closest('#sidebarBackdrop')){document.querySelector('#sidebar').classList.remove('open');syncResponsiveUI();return}
   if(e.target.closest('#shareButton')){document.querySelector('#shareUrl').value=location.href;document.querySelector('#shareDialog').showModal();return}
   if(e.target.closest('#activityButton')){renderActivity();document.querySelector('#activityDialog').showModal();return}
   if(e.target.closest('#quickAdd')||e.target.closest('[data-action="add-schedule"]')){openScheduleEditor();return}
@@ -475,9 +485,13 @@ window.addEventListener('appinstalled',()=>{
   document.querySelector('#installButton').hidden=true;
   toast('삿포로 여행 앱을 설치했어요.');
 });
+let responsiveTimer;
+window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open')){document.querySelector('#sidebar').classList.remove('open');syncResponsiveUI()}});
 if('serviceWorker' in navigator&&location.protocol!=='file:'){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
+syncResponsiveUI();
 initializeSupabase();
