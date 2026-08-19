@@ -1,0 +1,35 @@
+/* PWA/mobile hardening: safe areas, dynamic viewport and 44px touch targets. */
+html{min-height:100%;background:var(--paper)}
+body{min-height:100vh;min-height:100dvh;padding-top:env(safe-area-inset-top)}
+.app-shell{min-height:100vh;min-height:100dvh}
+img{max-width:100%;height:auto}
+button,a,input,select,textarea{touch-action:manipulation}
+.install-button{margin-top:8px;border-color:#d6a548;color:#edbd57}
+@media(max-width:760px){
+  body{padding-bottom:calc(68px + env(safe-area-inset-bottom))}
+  .sidebar{padding-top:calc(26px + env(safe-area-inset-top));padding-bottom:calc(20px + env(safe-area-inset-bottom))}
+  .topbar{top:env(safe-area-inset-top)}
+  .page{min-height:calc(100dvh - 60px);padding-bottom:calc(112px + env(safe-area-inset-bottom))}
+  button,.nav-item,.day-tab,.filter-row button,.chips button,.segmented button,.foliage-actions a,.foliage-actions button{min-height:44px}
+  input,select,textarea{font-size:16px;min-height:44px}
+  .mobile-nav{height:calc(62px + env(safe-area-inset-bottom));padding-bottom:env(safe-area-inset-bottom)}
+  .mobile-nav button{min-height:58px}
+  .mobile-now{bottom:calc(70px + env(safe-area-inset-bottom))}
+  .modal{max-height:calc(100dvh - 24px);overflow:auto;margin:auto}
+  .modal form{padding:18px}
+  .toast{bottom:calc(75px + env(safe-area-inset-bottom))}
+  .database{overscroll-behavior-x:contain}
+}
+@media(max-width:360px){
+  .page{padding-left:10px;padding-right:10px}
+  .hero-strip{padding-left:17px;padding-right:17px}
+  .hero-strip h1,.drinks-hero h1{font-size:27px}
+  .mobile-now{left:8px;right:8px;grid-template-columns:minmax(0,1fr) 44px 50px}
+  .mobile-now>div:nth-child(2){display:none}
+  .section-heading{flex-wrap:wrap}
+  .section-heading>.primary{width:100%}
+}
+@media(display-mode:standalone){
+  body{overscroll-behavior-y:none}
+  .install-button{display:none!important}
+}

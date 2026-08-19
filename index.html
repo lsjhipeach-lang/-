@@ -4,12 +4,21 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
   <meta name="theme-color" content="#15231e">
+  <meta name="description" content="2026 삿포로 4박 5일 일정·장소·경비·예약 협업 대시보드">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="삿포로 여행">
   <title>SAPPORO / 4N5D</title>
+  <link rel="manifest" href="manifest.webmanifest">
+  <link rel="icon" href="icons/app-icon.svg" type="image/svg+xml">
+  <link rel="apple-touch-icon" href="icons/apple-touch-icon.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="pwa.css">
 </head>
 <body>
   <aside class="sidebar" id="sidebar">
@@ -36,6 +45,7 @@
       </button>
       <button class="share-button" id="shareButton">↗ &nbsp;멤버 초대</button>
       <button class="share-button" id="authButton">☁ &nbsp;서버 로그인</button>
+      <button class="share-button install-button" id="installButton" hidden>↓ &nbsp;앱 설치</button>
       <p class="sync-state"><i></i><span id="syncText">이 기기에 저장됨</span></p>
     </div>
   </aside>

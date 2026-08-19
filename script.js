@@ -19,6 +19,7 @@ const TRIP_ID = 'sapporo-2026';
 const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let signedInUser = null;
 let remoteChannel = null;
+let deferredInstallPrompt = null;
 const CAT = {
   tour: { label: '🍁 단풍/관광', color: '#799858' }, food: { label: '🍣 식사', color: '#dc8738' },
   drink: { label: '🍶 술', color: '#8d4451' }, cafe: { label: '☕ 카페', color: '#ad7654' },
@@ -228,7 +229,7 @@ function navigate(page){
   const names={home:['TRIP OVERVIEW','여행 대시보드'],schedule:['DAY BY DAY','날짜별 일정'],foliage:['AUTUMN WATCH','단풍 스팟'],food:['FOOD SHORTLIST','맛집 DB'],drinks:['NIGHT ROUTES','술 대시보드'],map:['ALL PLACES','통합 지도'],budget:['TRIP WALLET','경비'],booking:['RESERVATION BOARD','예약 관리'],checklist:['READY TO GO','출발 전 체크리스트']};
   document.querySelector('#pageEyebrow').textContent=names[page][0]; document.querySelector('#pageTitle').textContent=names[page][1];
   document.querySelector('#sidebar').classList.remove('open'); window.scrollTo({top:0,behavior:'smooth'});
-  document.querySelector('#mobileNow').style.display=page==='home'&&innerWidth<=760?'flex':'none';
+  document.querySelector('#mobileNow').style.display=page==='home'&&innerWidth<=760?'grid':'none';
   if(page==='map') setTimeout(()=>{initMainMap();mainMap?.invalidateSize()},80);
   if(page==='drinks') setTimeout(()=>{initSusukinoMap();susukinoMap?.invalidateSize()},80);
 }
@@ -456,6 +457,27 @@ document.querySelector('#signOutButton').addEventListener('click',async()=>{
   if(remoteChannel){await supabaseClient.removeChannel(remoteChannel);remoteChannel=null}
   updateAuthUI();document.querySelector('#authDialog').close();toast('서버에서 로그아웃했어요.');
 });
+
+window.addEventListener('beforeinstallprompt',event=>{
+  event.preventDefault();
+  deferredInstallPrompt=event;
+  document.querySelector('#installButton').hidden=false;
+});
+document.querySelector('#installButton').addEventListener('click',async()=>{
+  if(!deferredInstallPrompt)return;
+  deferredInstallPrompt.prompt();
+  await deferredInstallPrompt.userChoice;
+  deferredInstallPrompt=null;
+  document.querySelector('#installButton').hidden=true;
+});
+window.addEventListener('appinstalled',()=>{
+  deferredInstallPrompt=null;
+  document.querySelector('#installButton').hidden=true;
+  toast('삿포로 여행 앱을 설치했어요.');
+});
+if('serviceWorker' in navigator&&location.protocol!=='file:'){
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+}
 
 renderAll();
 initializeSupabase();
