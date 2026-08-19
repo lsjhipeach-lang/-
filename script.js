@@ -13,6 +13,12 @@ const TRIP_DATES = [
 
 const MEMBERS = ['이승재', '윤지원'];
 const MASTER = '이승재';
+const SUPABASE_URL = 'https://rwmkfgnjsjfbipeybqqk.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable__P7HGi9sReXExdeGLnO9rQ_iLtYeQSH';
+const TRIP_ID = 'sapporo-2026';
+const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+let signedInUser = null;
+let remoteChannel = null;
 const CAT = {
   tour: { label: '🍁 단풍/관광', color: '#799858' }, food: { label: '🍣 식사', color: '#dc8738' },
   drink: { label: '🍶 술', color: '#8d4451' }, cafe: { label: '☕ 카페', color: '#ad7654' },
@@ -163,15 +169,52 @@ function loadState(){
   }
   catch { return structuredClone(initialData); }
 }
-function saveState(action){
+async function saveState(action){
+  if(action){ state.activity.unshift({member:state.currentMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); }
   localStorage.setItem('sapporo-trip-v3', JSON.stringify(state));
-  if(action){ state.activity.unshift({member:state.currentMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); localStorage.setItem('sapporo-trip-v3',JSON.stringify(state)); }
-  document.querySelector('#syncText').textContent='저장 완료';
-  setTimeout(()=>document.querySelector('#syncText').textContent='이 기기에 저장됨',1100);
+  const syncText=document.querySelector('#syncText');
+  syncText.textContent=signedInUser?'서버 저장 중…':'이 기기에 저장됨';
+  if(signedInUser&&supabaseClient){
+    const {error}=await supabaseClient.from('trip_states').upsert({trip_id:TRIP_ID,data:state,updated_at:new Date().toISOString()});
+    syncText.textContent=error?'서버 저장 실패 · 기기에는 저장됨':'서버에 저장됨';
+    if(error) console.error('Supabase save failed:',error);
+  }
   try { channel.postMessage({type:'state',state}); } catch {}
 }
 const channel = 'BroadcastChannel' in window ? new BroadcastChannel('sapporo-trip-sync') : {postMessage(){}};
 if(channel.addEventListener) channel.addEventListener('message',e=>{if(e.data?.type==='state'){state=e.data.state;renderAll();toast('다른 탭의 변경사항을 반영했어요.')}});
+
+async function loadRemoteState(){
+  if(!signedInUser||!supabaseClient)return;
+  document.querySelector('#syncText').textContent='서버 데이터 확인 중…';
+  const {data,error}=await supabaseClient.from('trip_states').select('data').eq('trip_id',TRIP_ID).maybeSingle();
+  if(error){document.querySelector('#syncText').textContent='서버 연결 실패 · 기기 데이터 사용 중';console.error(error);return}
+  if(data?.data){state=data.data;localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버와 동기화됨'}
+  else await saveState('기존 기기 데이터를 서버로 가져왔어요');
+}
+function subscribeRemote(){
+  if(!supabaseClient||remoteChannel)return;
+  remoteChannel=supabaseClient.channel('trip-state-live').on('postgres_changes',{event:'*',schema:'public',table:'trip_states',filter:`trip_id=eq.${TRIP_ID}`},payload=>{
+    if(payload.new?.data){state=payload.new.data;localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}
+  }).subscribe();
+}
+async function initializeSupabase(){
+  if(!supabaseClient)return;
+  const {data:{session}}=await supabaseClient.auth.getSession();
+  signedInUser=session?.user||null;
+  updateAuthUI();
+  if(signedInUser){await loadRemoteState();subscribeRemote()}
+  supabaseClient.auth.onAuthStateChange((_event,newSession)=>{
+    signedInUser=newSession?.user||null;updateAuthUI();
+    if(signedInUser){setTimeout(async()=>{await loadRemoteState();subscribeRemote()},0)}
+  });
+}
+function updateAuthUI(){
+  const button=document.querySelector('#authButton'),signOut=document.querySelector('#signOutButton');
+  button.textContent=signedInUser?`☁  ${signedInUser.email}`:'☁  서버 로그인';
+  signOut.hidden=!signedInUser;
+  if(!signedInUser)document.querySelector('#syncText').textContent='이 기기에 저장됨';
+}
 const yen = n => `¥${Math.round(Number(n)||0).toLocaleString('ko-KR')}`;
 const won = (n,rate=state.exchangeRate) => `₩${Math.round((Number(n)||0)*(Number(rate)||initialData.exchangeRate)).toLocaleString('ko-KR')}`;
 const expenseJPY = (expense,rate=state.exchangeRate) => expense.inputCurrency==='KRW' ? Number(expense.inputAmount||0)/(Number(rate)||initialData.exchangeRate) : Number(expense.inputAmount??expense.amount??0);
@@ -398,5 +441,21 @@ document.querySelector('#editorForm').addEventListener('submit',e=>{
 });
 document.querySelector('#deleteItem').addEventListener('click',()=>{if(!editing||editing.isNew)return; if(!confirm('이 항목을 삭제할까요?'))return;const arr=editing.type==='schedule'?state.schedules:editing.type==='food'?state.food:editing.type==='drink'?state.drinks:editing.type==='expense'?state.expenses:state.reservations;if(editing.type==='schedule')state.reservations.filter(r=>r.scheduleId===editing.id).forEach(r=>r.scheduleId='');const idx=arr.findIndex(x=>x.id===editing.id);if(idx>=0)arr.splice(idx,1);saveState('항목을 삭제했어요');document.querySelector('#editorDialog').close();renderAll();toast('삭제했어요.');});
 document.querySelector('#memberButton').addEventListener('click',()=>{const i=MEMBERS.indexOf(state.currentMember);state.currentMember=MEMBERS[(i+1)%MEMBERS.length];saveState();renderAll();toast(`${state.currentMember} 님으로 전환했어요.`)});
+document.querySelector('#authButton').addEventListener('click',()=>document.querySelector('#authDialog').showModal());
+document.querySelector('#closeAuth').addEventListener('click',()=>document.querySelector('#authDialog').close());
+document.querySelector('#authForm').addEventListener('submit',async e=>{
+  e.preventDefault();
+  const email=document.querySelector('#authEmail').value.trim();
+  const {error}=await supabaseClient.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split('#')[0]}});
+  if(error){toast(`로그인 링크 전송 실패: ${error.message}`);return}
+  document.querySelector('#authDialog').close();toast('이메일로 로그인 링크를 보냈어요.');
+});
+document.querySelector('#signOutButton').addEventListener('click',async()=>{
+  await supabaseClient.auth.signOut();
+  signedInUser=null;
+  if(remoteChannel){await supabaseClient.removeChannel(remoteChannel);remoteChannel=null}
+  updateAuthUI();document.querySelector('#authDialog').close();toast('서버에서 로그아웃했어요.');
+});
 
 renderAll();
+initializeSupabase();

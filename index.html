@@ -35,6 +35,7 @@
         <span>⌄</span>
       </button>
       <button class="share-button" id="shareButton">↗ &nbsp;멤버 초대</button>
+      <button class="share-button" id="authButton">☁ &nbsp;서버 로그인</button>
       <p class="sync-state"><i></i><span id="syncText">이 기기에 저장됨</span></p>
     </div>
   </aside>
@@ -157,11 +158,13 @@
   </div>
 
   <dialog id="editorDialog" class="modal"><form method="dialog" id="editorForm"><div class="modal-head"><div><p class="eyebrow" id="modalEyebrow">EDIT</p><h2 id="modalTitle">일정 수정</h2></div><button class="icon-button" value="cancel" aria-label="닫기">×</button></div><div class="form-grid" id="editorFields"></div><div class="modal-actions"><button class="danger ghost" type="button" id="deleteItem">삭제</button><span></span><button class="secondary" value="cancel">취소</button><button class="primary" type="submit">저장</button></div></form></dialog>
-  <dialog id="shareDialog" class="modal compact-modal"><form method="dialog"><div class="modal-head"><div><p class="eyebrow">COLLABORATE</p><h2>여행 멤버 초대</h2></div><button class="icon-button" value="cancel">×</button></div><p>현재 버전은 이 기기에서 자동 저장되고, 같은 브라우저 탭끼리 변경사항을 동기화합니다. 실제 공유 배포 시 백엔드 연결이 필요합니다.</p><label class="field"><span>권한</span><select><option>편집 가능</option><option>읽기 전용</option></select></label><label class="field"><span>공유 링크</span><div class="copy-row"><input readonly id="shareUrl"><button type="button" class="secondary" id="copyLink">복사</button></div></label><button class="primary full-button" value="cancel">확인</button></form></dialog>
+  <dialog id="shareDialog" class="modal compact-modal"><form method="dialog"><div class="modal-head"><div><p class="eyebrow">COLLABORATE</p><h2>여행 멤버 초대</h2></div><button class="icon-button" value="cancel">×</button></div><p>공유받은 사람도 서버 로그인을 완료하면 여러 기기에서 같은 여행 데이터를 함께 편집할 수 있습니다.</p><label class="field"><span>권한</span><select><option>편집 가능</option></select></label><label class="field"><span>공유 링크</span><div class="copy-row"><input readonly id="shareUrl"><button type="button" class="secondary" id="copyLink">복사</button></div></label><button class="primary full-button" value="cancel">확인</button></form></dialog>
   <dialog id="activityDialog" class="modal compact-modal"><form method="dialog"><div class="modal-head"><div><p class="eyebrow">ACTIVITY</p><h2>최근 수정 내역</h2></div><button class="icon-button" value="cancel">×</button></div><div id="activityList"></div></form></dialog>
+  <dialog id="authDialog" class="modal compact-modal"><form id="authForm"><div class="modal-head"><div><p class="eyebrow">SECURE SYNC</p><h2>서버 로그인</h2></div><button class="icon-button" type="button" id="closeAuth" aria-label="닫기">×</button></div><p>이메일로 받은 로그인 링크를 누르면 모든 기기에서 같은 여행 데이터를 사용할 수 있습니다.</p><label class="field"><span>이메일</span><input id="authEmail" name="email" type="email" autocomplete="email" required placeholder="name@example.com"></label><button class="primary full-button" type="submit">로그인 링크 받기</button><button class="secondary full-button" type="button" id="signOutButton" hidden>로그아웃</button></form></dialog>
 
   <div class="toast" id="toast" role="status"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
   <script src="script.js"></script>
 </body>
 </html>
