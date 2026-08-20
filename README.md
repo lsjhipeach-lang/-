@@ -2,6 +2,35 @@
 
 `index.html`을 열면 바로 실행되는 반응형 여행 컨트롤타워입니다. 별도 빌드 과정은 없습니다.
 
+## 새 컴퓨터에서 바로 작업하기
+
+새 컴퓨터에는 Visual Studio Code, Git for Windows, Python 3, VS Code용 Codex 확장을 설치합니다. 그다음 PowerShell에서 아래 명령을 실행합니다.
+
+```powershell
+cd "$HOME\Desktop"
+git clone "https://github.com/lsjhipeach-lang/-.git" "삿포로 여행"
+cd ".\삿포로 여행"
+powershell -NoProfile -ExecutionPolicy Bypass -File ".\setup-new-pc.ps1"
+code .
+```
+
+초기 설정 스크립트는 다음 항목을 자동으로 확인합니다.
+
+- Git과 Python 설치 여부
+- ZIP이 아닌 정상적인 Git 저장소인지
+- `origin`이 이 프로젝트의 GitHub 저장소인지
+- Git 커밋 작성자 이름과 이메일이 설정되어 있는지
+- 로컬 변경이 없는 경우 최신 `main`을 안전하게 `pull`할 수 있는지
+
+Git 사용자 정보가 없으면 스크립트가 이름과 이메일을 한 번 물어봅니다. GitHub 계정 인증은 첫 `push` 때 Git Credential Manager 또는 VS Code의 로그인 화면에서 진행합니다. 비밀번호나 토큰은 프로젝트 파일에 저장하지 않습니다.
+
+VS Code에서 `Terminal → Run Task`를 열면 다음 작업도 사용할 수 있습니다.
+
+- `Sapporo: 새 PC 초기 설정`
+- `Sapporo: 로컬 서버 실행`
+
+매 작업은 `git pull`로 시작하고, Codex에는 `수정 후 테스트하고 커밋·푸시까지 해줘`라고 요청하면 됩니다. Supabase URL·공개 키·테이블·여행 ID는 저장소 코드에 이미 연결되어 있으므로 새 PC에서 별도로 만들지 않습니다.
+
 ## PWA 실행 및 설치
 
 PWA 기능은 보안 컨텍스트가 필요하므로 `file://`로 직접 열지 말고 이 폴더에서 로컬 웹 서버를 실행합니다.
