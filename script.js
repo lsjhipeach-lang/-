@@ -3,13 +3,26 @@
    localStorage is the persistence adapter; replace storage methods with a remote
    adapter (Supabase/Firebase) for cross-device authenticated collaboration. */
 
-const TRIP_DATES = [
+const DEFAULT_TRIP_DATES = [
   { date: '2026-10-22', label: 'DAY 1', short: '10.22', weekday: '목', theme: '도착 · 스스키노' },
   { date: '2026-10-23', label: 'DAY 2', short: '10.23', weekday: '금', theme: '삿포로의 가을' },
   { date: '2026-10-24', label: 'DAY 3', short: '10.24', weekday: '토', theme: '조잔케이' },
   { date: '2026-10-25', label: 'DAY 4', short: '10.25', weekday: '일', theme: '오타루 · 운하의 밤' },
   { date: '2026-10-26', label: 'DAY 5', short: '10.26', weekday: '월', theme: '시장 · 귀국' }
 ];
+let TRIP_DATES = [...DEFAULT_TRIP_DATES];
+
+const parseDate = value => new Date(`${value}T00:00:00`);
+const dateKey = date => `${date.getFullYear()}-${String(date.getMonth()+1).padStart(2,'0')}-${String(date.getDate()).padStart(2,'0')}`;
+const shiftDate = (value,days) => {const date=parseDate(value);date.setDate(date.getDate()+days);return dateKey(date)};
+const inTripRange = value => value>=state.tripStart&&value<=state.tripEnd;
+function buildTripDates(start,end){
+  const themes=DEFAULT_TRIP_DATES.map(day=>day.theme), dates=[];
+  for(let cursor=parseDate(start),last=parseDate(end),index=0;cursor<=last;cursor.setDate(cursor.getDate()+1),index++){
+    dates.push({date:dateKey(cursor),label:`DAY ${index+1}`,short:`${String(cursor.getMonth()+1).padStart(2,'0')}.${String(cursor.getDate()).padStart(2,'0')}`,weekday:new Intl.DateTimeFormat('ko-KR',{weekday:'short'}).format(cursor).replace('요일',''),theme:themes[index]||(cursor.getTime()===last.getTime()?'여행 마무리':'자유 일정')});
+  }
+  return dates;
+}
 
 const MEMBERS = ['이승재', '윤지원'];
 const MASTER = '이승재';
@@ -29,6 +42,8 @@ const CAT = {
 
 const initialData = {
   version: 4,
+  tripStart: '2026-10-22',
+  tripEnd: '2026-10-26',
   currentMember: '이승재',
   exchangeRate: 9.3,
   schedules: [
@@ -137,7 +152,8 @@ const initialData = {
 };
 
 let state = loadState();
-let activeDay = TRIP_DATES[0].date;
+let activeDay;
+syncTripDates();
 let activeFoodPriority = 'all';
 let activeFoliageArea = '전체';
 let activeFoliageStatus = '전체 상태';
@@ -152,6 +168,8 @@ function loadState(){
     const saved = JSON.parse(localStorage.getItem('sapporo-trip-v3'));
     if(!saved) return structuredClone(initialData);
     if(saved.version === initialData.version){
+      saved.tripStart=saved.tripStart||initialData.tripStart;
+      saved.tripEnd=saved.tripEnd||initialData.tripEnd;
       saved.exchangeRate=Number(saved.exchangeRate||localStorage.getItem('sapporo-rate'))||initialData.exchangeRate;
       const reservationLinks={r2:'s2',r3:'s3',r4:'s9',r5:'s10'};
       saved.reservations?.forEach(r=>{if(!r.scheduleId&&reservationLinks[r.id])r.scheduleId=reservationLinks[r.id]});
@@ -166,9 +184,17 @@ function loadState(){
     if(Array.isArray(saved.expenses)) migrated.expenses=saved.expenses.map((e,index)=>{const payer=memberMap[e.payer]||MEMBERS[index%MEMBERS.length],scope=e.scope||'common',owner=scope==='personal'?(memberMap[e.owner]||payer):'';return {...e,payer,owner,scope,inputCurrency:e.inputCurrency||'JPY',inputAmount:Number(e.inputAmount??e.amount),participants:scope==='personal'?[owner]:[...MEMBERS]}});
     if(Array.isArray(saved.activity)) migrated.activity=saved.activity.map(a=>({...a,member:memberMap[a.member]||MASTER}));
     migrated.exchangeRate=Number(saved.exchangeRate||localStorage.getItem('sapporo-rate'))||initialData.exchangeRate;
+    migrated.tripStart=saved.tripStart||initialData.tripStart;
+    migrated.tripEnd=saved.tripEnd||initialData.tripEnd;
     return migrated;
   }
   catch { return structuredClone(initialData); }
+}
+function syncTripDates(){
+  state.tripStart=state.tripStart||initialData.tripStart;
+  state.tripEnd=state.tripEnd||initialData.tripEnd;
+  TRIP_DATES=buildTripDates(state.tripStart,state.tripEnd);
+  if(!TRIP_DATES.some(day=>day.date===activeDay))activeDay=TRIP_DATES[0]?.date||state.tripStart;
 }
 async function saveState(action){
   if(action){ state.activity.unshift({member:state.currentMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); }
@@ -244,14 +270,16 @@ function syncResponsiveUI(){
 }
 
 function renderStats(){
-  const confirmed=state.schedules.filter(s=>!['조사 필요','확인 필요'].includes(s.reservation)).length;
-  const need=state.reservations.filter(r=>r.status!=='취소').length, done=state.reservations.filter(r=>r.status==='예약 완료').length;
-  const planned=state.schedules.reduce((a,b)=>a+(Number(b.cost)||0),0)*MEMBERS.length;
+  const tripSchedules=state.schedules.filter(s=>inTripRange(s.date)),tripReservations=state.reservations.filter(r=>inTripRange(r.date));
+  const confirmed=tripSchedules.filter(s=>!['조사 필요','확인 필요'].includes(s.reservation)).length;
+  const need=tripReservations.filter(r=>r.status!=='취소').length, done=tripReservations.filter(r=>r.status==='예약 완료').length;
+  const planned=tripSchedules.reduce((a,b)=>a+(Number(b.cost)||0),0)*MEMBERS.length;
   const spent=state.expenses.reduce((a,b)=>a+expenseJPY(b),0);
   const todo=state.checklist.filter(c=>!c.done).length;
-  const days=Math.ceil((new Date('2026-10-22T00:00:00+09:00')-new Date())/86400000);
+  const today=new Date();today.setHours(0,0,0,0);const start=parseDate(state.tripStart),end=parseDate(state.tripEnd);
+  const days=Math.ceil((start-today)/86400000), duration=TRIP_DATES.length, period=duration===1?'1일':`${duration-1}박 ${duration}일`;
   const rate=Number(state.exchangeRate)||initialData.exchangeRate;
-  const stats=[['D-DAY',days>0?`D-${days}`:'여행 중'],['여행 기간','4박 5일'],['확정 일정',`${confirmed}<em>개</em>`],['예약 필요',`${need}<em>곳</em>`],['예약 완료',`${done}<em>곳</em>`],['예상 총 여행비',`${yen(planned)}<em>/ ${MEMBERS.length}인</em>`],['현재 경비',`${yen(spent)}<em>₩${Math.round(spent*rate).toLocaleString()}</em>`],['출발 전 할 일',`${todo}<em>개</em>`]];
+  const stats=[['D-DAY',days>0?`D-${days}`:today<=end?'여행 중':'여행 완료'],['여행 기간',period],['확정 일정',`${confirmed}<em>개</em>`],['예약 필요',`${need}<em>곳</em>`],['예약 완료',`${done}<em>곳</em>`],['예상 총 여행비',`${yen(planned)}<em>/ ${MEMBERS.length}인</em>`],['현재 경비',`${yen(spent)}<em>₩${Math.round(spent*rate).toLocaleString()}</em>`],['출발 전 할 일',`${todo}<em>개</em>`]];
   document.querySelector('#stats').innerHTML=stats.map((s,i)=>`<div class="stat-card ${i===0?'accent':''}"><small>${s[0]}</small><b>${s[1]}</b></div>`).join('');
 }
 function renderTimeline(){
@@ -293,12 +321,13 @@ function renderFood(){
   document.querySelector('#foodDatabase').innerHTML=`<div class="db-row header"><span>가게 / 대표 메뉴</span><span>지역</span><span>가격대</span><span>방문일</span><span>우선순위</span><span>별점</span><span>투표</span><span></span></div>`+list.map(p=>`<div class="db-row"><div class="db-name"><b>${esc(p.name)}</b><small>${esc(p.menu)} · ${esc(p.hours)}</small></div><span>${esc(p.area)}</span><span>${esc(p.price)}</span><span>${esc(p.visit)}</span><span><i class="priority-dot ${p.priority}"></i>${{must:'무조건',maybe:'시간 되면',candidate:'후보'}[p.priority]}</span><span class="stars">${'★'.repeat(p.stars)}${'☆'.repeat(5-p.stars)}</span><button class="vote-button ${p.voted?'voted':''}" data-vote="food:${p.id}">👍 ${p.votes}</button><button class="icon-button" data-edit-place="food:${p.id}">›</button></div>`).join('');
 }
 function renderDrinkRoutes(){
+  const nightDate=index=>{const day=TRIP_DATES[index]||TRIP_DATES.at(-1);if(!day)return '날짜 미정';return `${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(day.date)).toUpperCase()} · ${day.short}`};
   const routes=[
-    {night:'THU · 10.22',name:'도착의 밤',plan:'PLAN A',stops:[['18:30','징기스칸 후보'],['20:20','사케 바'],['22:15','위스키 바'],['23:40','숙소']]},
-    {night:'FRI · 10.23',name:'스스키노 딥다이브',plan:'PLAN A',stops:[['18:30','해산물 저녁'],['20:30','이자카야'],['22:15','칵테일 바'],['00:00','숙소']]},
-    {night:'SAT · 10.24',name:'온천 뒤 한 잔',plan:'PLAN B',stops:[['19:00','야키토리'],['21:00','크래프트 맥주'],['22:45','라멘/숙소']]}
+    {night:nightDate(0),name:'도착의 밤',plan:'PLAN A',stops:[['18:30','징기스칸 후보'],['20:20','사케 바'],['22:15','위스키 바'],['23:40','숙소']]},
+    {night:nightDate(1),name:'스스키노 딥다이브',plan:'PLAN A',stops:[['18:30','해산물 저녁'],['20:30','이자카야'],['22:15','칵테일 바'],['00:00','숙소']]},
+    {night:nightDate(2),name:'온천 뒤 한 잔',plan:'PLAN B',stops:[['19:00','야키토리'],['21:00','크래프트 맥주'],['22:45','라멘/숙소']]}
   ];
-  document.querySelector('#drinkRoutes').innerHTML=routes.map(r=>`<article class="route-card"><div class="route-card-head"><div><small>${r.night}</small><b> ${r.name}</b></div><span>${r.plan}</span></div><div class="night-stops">${r.stops.map((s,i)=>`<div class="night-stop"><small>${i?`${i}차`:'저녁'} · ${s[0]}</small><b>${s[1]}</b><em>${i<r.stops.length-1?'도보 5~15분':'복귀'}</em></div>`).join('')}</div></article>`).join('');
+  document.querySelector('#drinkRoutes').innerHTML=routes.slice(0,Math.min(3,TRIP_DATES.length)).map(r=>`<article class="route-card"><div class="route-card-head"><div><small>${r.night}</small><b> ${r.name}</b></div><span>${r.plan}</span></div><div class="night-stops">${r.stops.map((s,i)=>`<div class="night-stop"><small>${i?`${i}차`:'저녁'} · ${s[0]}</small><b>${s[1]}</b><em>${i<r.stops.length-1?'도보 5~15분':'복귀'}</em></div>`).join('')}</div></article>`).join('');
 }
 function renderDrinks(){
   renderDrinkRoutes(); const cats=['전체',...new Set(state.drinks.map(d=>d.category))];
@@ -372,7 +401,16 @@ function runConsistencyChecks(){
   };
   const passed=Object.values(tests).every(Boolean);document.body.dataset.syncStatus=passed?'passed':'failed';window.tripSyncReport={passed,tests,checkedAt:new Date().toISOString()};window.getTripDiagnostics=()=>({state:structuredClone(state),report:structuredClone(window.tripSyncReport),drinkMarkerPopups:drinkMapMarkers.map(marker=>marker.getPopup()?.getContent()||'')});return window.tripSyncReport;
 }
-function renderAll(){document.querySelector('#exchangeRate').value=state.exchangeRate;renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=state.currentMember;document.querySelector('#currentMemberRole').textContent=state.currentMember===MASTER?'마스터 · 온라인':'편집 가능 · 온라인';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
+function renderTripPeriod(){
+  const duration=TRIP_DATES.length,period=duration===1?'1일':`${duration-1}박 ${duration}일`,format=new Intl.DateTimeFormat('ko-KR',{year:'numeric',month:'short',day:'numeric'});
+  document.querySelector('#tripStart').value=state.tripStart;document.querySelector('#tripEnd').value=state.tripEnd;
+  document.querySelector('#tripPeriodSummary').textContent=`${period} · ${format.format(parseDate(state.tripStart))} ~ ${format.format(parseDate(state.tripEnd))}`;
+  document.querySelector('#timelineTitle').textContent=`${period} 한눈에 보기`;
+  document.querySelector('#brandTripDates').textContent=`${state.tripStart.replaceAll('-','.')} — ${state.tripEnd.replaceAll('-','.')}`;
+  const firstNight=document.querySelector('#firstNightDate'),first=TRIP_DATES[0];if(firstNight&&first)firstNight.textContent=`${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(first.date)).toUpperCase()} · ${first.short}`;
+  document.title=`SAPPORO / ${period}`;
+}
+function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=state.currentMember;document.querySelector('#currentMemberRole').textContent=state.currentMember===MASTER?'마스터 · 온라인':'편집 가능 · 온라인';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
 
 const scheduleFields=[['time','시간','time'],['end','종료','time'],['place','장소','text','wide'],['category','카테고리','select'],['description','한 줄 설명','text','wide'],['duration','예상 체류시간(분)','number'],['nextTravel','다음 장소 이동시간(분)','number'],['transport','이동방법','text'],['cost','예상 비용(JPY)','number'],['reservation','예약 여부','select'],['reservationTime','예약 시간','time'],['map','Google Maps 링크','url','wide'],['official','공식/예약 링크','url','wide'],['memo','메모','textarea','wide']];
 function openScheduleEditor(id){
@@ -442,6 +480,16 @@ document.addEventListener('change',e=>{
   if(e.target.matches('[data-foliage-status]')){const place=state.foliage.find(f=>f.id===e.target.dataset.foliageStatus);place.status=e.target.value;saveState(`${place.name} 단풍 상태를 ${place.status}(으)로 변경했어요`);renderAll();toast('단풍 카드와 지도 상세에 상태를 반영했어요.');}
 });
 document.querySelector('#foodSearch').addEventListener('input',renderFood);
+document.querySelector('#tripPeriodForm').addEventListener('submit',e=>{
+  e.preventDefault();const start=e.currentTarget.tripStart.value,end=e.currentTarget.tripEnd.value;
+  if(!start||!end)return toast('시작일과 종료일을 모두 입력해주세요.');
+  const duration=Math.floor((parseDate(end)-parseDate(start))/86400000)+1;
+  if(duration<1)return toast('종료일은 시작일보다 빠를 수 없어요.');
+  if(duration>31)return toast('여행 기간은 최대 31일까지 입력할 수 있어요.');
+  const oldStart=state.tripStart,oldEnd=state.tripEnd,offset=Math.round((parseDate(start)-parseDate(oldStart))/86400000);
+  if(offset){state.schedules.filter(item=>item.date>=oldStart&&item.date<=oldEnd).forEach(item=>item.date=shiftDate(item.date,offset));state.reservations.filter(item=>item.date>=oldStart&&item.date<=oldEnd).forEach(item=>item.date=shiftDate(item.date,offset))}
+  state.tripStart=start;state.tripEnd=end;activeDay=start;saveState(`여행 기간을 ${start} ~ ${end}(으)로 변경했어요`);renderAll();toast('여행 기간과 일정 날짜를 업데이트했어요.');
+});
 document.querySelector('#editorForm').addEventListener('submit',e=>{
   e.preventDefault();const fd=new FormData(e.currentTarget),values=Object.fromEntries(fd.entries());
   if(editing.type==='schedule'){const item=editing.isNew?{id:editing.id}:state.schedules.find(x=>x.id===editing.id);Object.assign(item,values,{duration:Number(values.duration),nextTravel:Number(values.nextTravel),cost:Number(values.cost)});if(editing.isNew)state.schedules.push(item);syncScheduleToReservation(item);saveState(`${item.place||'새 일정'}을 ${editing.isNew?'추가':'수정'}했어요`)}

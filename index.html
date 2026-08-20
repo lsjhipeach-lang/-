@@ -24,7 +24,7 @@
   <aside class="sidebar" id="sidebar" aria-label="전체 여행 메뉴">
     <a class="brand" href="#" data-page-link="home">
       <span class="brand-mark">S</span>
-      <span><b>SAPPORO</b><small>OCT 22—26, 2026</small></span>
+      <span><b>SAPPORO</b><small id="brandTripDates">OCT 22—26, 2026</small></span>
     </a>
     <nav id="mainNav" aria-label="주요 메뉴">
       <button class="nav-item active" data-page="home"><span>⌂</span> 대시보드</button>
@@ -72,10 +72,22 @@
         <div class="weather-note"><span>!</span><div><b>출발 7일 전 확인</b><small>단풍 현황 · 일기예보 · 영업시간</small></div></div>
       </div>
 
+      <form class="trip-period" id="tripPeriodForm">
+        <div class="trip-period-copy">
+          <p class="eyebrow">TRIP DATES</p>
+          <b>여행 기간</b>
+          <small id="tripPeriodSummary">4박 5일</small>
+        </div>
+        <label><span>시작일</span><input type="date" id="tripStart" name="tripStart" required></label>
+        <i aria-hidden="true">→</i>
+        <label><span>종료일</span><input type="date" id="tripEnd" name="tripEnd" required></label>
+        <button class="primary" type="submit">기간 적용</button>
+      </form>
+
       <div class="stat-grid" id="stats"></div>
 
       <div class="section-heading">
-        <div><p class="eyebrow">MASTER TIMELINE</p><h2>4박 5일 한눈에 보기</h2></div>
+        <div><p class="eyebrow">MASTER TIMELINE</p><h2 id="timelineTitle">4박 5일 한눈에 보기</h2></div>
         <div class="legend"><span class="tour">● 관광</span><span class="food">● 식사</span><span class="drink">● 술</span><span class="move">● 이동</span></div>
       </div>
       <div class="timeline" id="masterTimeline"></div>
@@ -118,7 +130,7 @@
       <div class="drinks-hero"><div><p class="kicker">THE NIGHT IS THE DESTINATION</p><h1>오늘 밤,<br><em>어디까지 갈까요?</em></h1><p>저녁부터 숙소까지. 예약 실패에도 끊기지 않는 밤의 동선.</p></div><div class="neon-sign">SUSUKINO<br><small>43°03′N</small></div></div>
       <div class="drink-layout">
         <div>
-          <div class="section-heading"><div><p class="eyebrow">NIGHT ROUTES</p><h2>밤별 Plan A / B</h2></div><div class="day-pill">THU · 10.22</div></div>
+          <div class="section-heading"><div><p class="eyebrow">NIGHT ROUTES</p><h2>밤별 Plan A / B</h2></div><div class="day-pill" id="firstNightDate">THU · 10.22</div></div>
           <div id="drinkRoutes"></div>
         </div>
         <aside class="mini-map-card"><div class="panel-head"><div><p class="eyebrow">SUSUKINO MAP</p><h3>도보권 술 지도</h3></div><button class="text-button" data-page-link="map">큰 지도 ↗</button></div><div id="susukinoMap"></div><p>핀을 누르면 다음 술집 후보와 도보 동선을 확인할 수 있어요.</p></aside>
