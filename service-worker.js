@@ -1,5 +1,5 @@
-const CACHE_NAME='sapporo-shell-v7-email-otp';
-const APP_SHELL=['./','./index.html','./style.css?v=7','./pwa.css?v=7','./script.js?v=7','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
+const CACHE_NAME='sapporo-shell-v8-user-manual';
+const APP_SHELL=['./','./index.html','./manual.html','./style.css?v=8','./pwa.css?v=8','./script.js?v=8','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
 
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
