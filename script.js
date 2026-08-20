@@ -26,10 +26,11 @@ function buildTripDates(start,end){
 
 const MEMBERS = ['이승재', '윤지원'];
 const MASTER = '이승재';
+const PREVIEW_MODE = new URLSearchParams(location.search).get('preview') === '1';
 const SUPABASE_URL = 'https://rwmkfgnjsjfbipeybqqk.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable__P7HGi9sReXExdeGLnO9rQ_iLtYeQSH';
 const TRIP_ID = 'sapporo-2026';
-const supabaseClient = window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+const supabaseClient = PREVIEW_MODE ? null : window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let signedInUser = null;
 let remoteChannel = null;
 let deferredInstallPrompt = null;
@@ -164,6 +165,7 @@ let mainMap, susukinoMap, mapMarkers = [], drinkMapMarkers = [];
 const openChecklistGroups = new Set(['의류 · 방한']);
 
 function loadState(){
+  if(PREVIEW_MODE)return structuredClone(initialData);
   try {
     const saved = JSON.parse(localStorage.getItem('sapporo-trip-v3'));
     if(!saved) return structuredClone(initialData);
@@ -198,9 +200,9 @@ function syncTripDates(){
 }
 async function saveState(action){
   if(action){ state.activity.unshift({member:state.currentMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); }
-  localStorage.setItem('sapporo-trip-v3', JSON.stringify(state));
+  if(!PREVIEW_MODE)localStorage.setItem('sapporo-trip-v3', JSON.stringify(state));
   const syncText=document.querySelector('#syncText');
-  syncText.textContent=signedInUser?'서버 저장 중…':'이 기기에 저장됨';
+  syncText.textContent=PREVIEW_MODE?'미리보기 · 새로고침 시 초기화':signedInUser?'서버 저장 중…':'이 기기에 저장됨';
   if(signedInUser&&supabaseClient){
     const {error}=await supabaseClient.from('trip_states').upsert({trip_id:TRIP_ID,data:state,updated_at:new Date().toISOString()});
     syncText.textContent=error?'서버 저장 실패 · 기기에는 저장됨':'서버에 저장됨';
@@ -208,7 +210,7 @@ async function saveState(action){
   }
   try { channel.postMessage({type:'state',state}); } catch {}
 }
-const channel = 'BroadcastChannel' in window ? new BroadcastChannel('sapporo-trip-sync') : {postMessage(){}};
+const channel = !PREVIEW_MODE&&'BroadcastChannel' in window ? new BroadcastChannel('sapporo-trip-sync') : {postMessage(){}};
 if(channel.addEventListener) channel.addEventListener('message',e=>{if(e.data?.type==='state'){state=e.data.state;renderAll();toast('다른 탭의 변경사항을 반영했어요.')}});
 
 async function loadRemoteState(){
@@ -216,13 +218,13 @@ async function loadRemoteState(){
   document.querySelector('#syncText').textContent='서버 데이터 확인 중…';
   const {data,error}=await supabaseClient.from('trip_states').select('data').eq('trip_id',TRIP_ID).maybeSingle();
   if(error){document.querySelector('#syncText').textContent='서버 연결 실패 · 기기 데이터 사용 중';console.error(error);return}
-  if(data?.data){state=data.data;localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버와 동기화됨'}
+  if(data?.data){state=data.data;if(!PREVIEW_MODE)localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버와 동기화됨'}
   else await saveState('기존 기기 데이터를 서버로 가져왔어요');
 }
 function subscribeRemote(){
   if(!supabaseClient||remoteChannel)return;
   remoteChannel=supabaseClient.channel('trip-state-live').on('postgres_changes',{event:'*',schema:'public',table:'trip_states',filter:`trip_id=eq.${TRIP_ID}`},payload=>{
-    if(payload.new?.data){state=payload.new.data;localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}
+    if(payload.new?.data){state=payload.new.data;if(!PREVIEW_MODE)localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}
   }).subscribe();
 }
 async function initializeSupabase(){
@@ -237,8 +239,10 @@ async function initializeSupabase(){
   });
 }
 function updateAuthUI(){
-  const button=document.querySelector('#authButton'),signOut=document.querySelector('#signOutButton');
-  button.textContent=signedInUser?`☁  ${signedInUser.email}`:'☁  서버 로그인';
+  const label=document.querySelector('#authButtonLabel'),meta=document.querySelector('#authButtonMeta'),signOut=document.querySelector('#signOutButton');
+  if(PREVIEW_MODE){label.textContent='서버 로그인';meta.textContent='미리보기에서는 서버 연결이 차단됩니다';signOut.hidden=true;document.querySelector('#syncText').textContent='미리보기 · 서버 저장 안 함';return}
+  label.textContent=signedInUser?'로그인 계정':'서버 로그인';
+  meta.textContent=signedInUser?signedInUser.email:'여러 기기에서 여행 데이터 동기화하기';
   signOut.hidden=!signedInUser;
   if(!signedInUser)document.querySelector('#syncText').textContent='이 기기에 저장됨';
 }
@@ -249,12 +253,31 @@ const uid = p => p + Date.now().toString(36);
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function toast(message){const el=document.querySelector('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2200)}
 
+let menuScrollY=0;
+function setMobileMenuOpen(open){
+  const sidebar=document.querySelector('#sidebar');
+  const shouldOpen=open&&matchMedia('(max-width: 767px)').matches;
+  if(shouldOpen&&!document.body.classList.contains('menu-open')){
+    menuScrollY=window.scrollY;
+    document.body.style.top=`-${menuScrollY}px`;
+    document.documentElement.classList.add('menu-open');
+    document.body.classList.add('menu-open');
+  }else if(!shouldOpen&&document.body.classList.contains('menu-open')){
+    document.documentElement.classList.remove('menu-open');
+    document.body.classList.remove('menu-open');
+    document.body.style.top='';
+    window.scrollTo(0,menuScrollY);
+  }
+  sidebar.classList.toggle('open',shouldOpen);
+  document.querySelector('#menuButton').setAttribute('aria-expanded',String(shouldOpen));
+}
+
 function navigate(page){
   document.querySelectorAll('.page').forEach(p=>p.classList.toggle('active',p.id===`page-${page}`));
   document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   const names={home:['TRIP OVERVIEW','여행 대시보드'],schedule:['DAY BY DAY','날짜별 일정'],foliage:['AUTUMN WATCH','단풍 스팟'],food:['FOOD SHORTLIST','맛집 DB'],drinks:['NIGHT ROUTES','술 대시보드'],map:['ALL PLACES','통합 지도'],budget:['TRIP WALLET','경비'],booking:['RESERVATION BOARD','예약 관리'],checklist:['READY TO GO','출발 전 체크리스트']};
   document.querySelector('#pageEyebrow').textContent=names[page][0]; document.querySelector('#pageTitle').textContent=names[page][1];
-  document.querySelector('#sidebar').classList.remove('open'); window.scrollTo({top:0,behavior:'smooth'});
+  setMobileMenuOpen(false); window.scrollTo({top:0,behavior:'smooth'});
   document.querySelector('#mobileNow').classList.toggle('visible',page==='home'&&matchMedia('(max-width: 767px)').matches);
   if(page==='map') setTimeout(()=>{initMainMap();mainMap?.invalidateSize()},80);
   if(page==='drinks') setTimeout(()=>{initSusukinoMap();susukinoMap?.invalidateSize()},80);
@@ -263,9 +286,8 @@ function navigate(page){
 function syncResponsiveUI(){
   const mobile=matchMedia('(max-width: 767px)').matches;
   const sidebar=document.querySelector('#sidebar');
-  if(!mobile)sidebar.classList.remove('open');
+  setMobileMenuOpen(mobile&&sidebar.classList.contains('open'));
   document.querySelector('#mobileNow').classList.toggle('visible',mobile&&document.querySelector('#page-home').classList.contains('active'));
-  document.querySelector('#menuButton').setAttribute('aria-expanded',String(mobile&&sidebar.classList.contains('open')));
   requestAnimationFrame(()=>{mainMap?.invalidateSize();susukinoMap?.invalidateSize()});
 }
 
@@ -410,7 +432,7 @@ function renderTripPeriod(){
   const firstNight=document.querySelector('#firstNightDate'),first=TRIP_DATES[0];if(firstNight&&first)firstNight.textContent=`${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(first.date)).toUpperCase()} · ${first.short}`;
   document.title=`SAPPORO / ${period}`;
 }
-function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=state.currentMember;document.querySelector('#currentMemberRole').textContent=state.currentMember===MASTER?'마스터 · 온라인':'편집 가능 · 온라인';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
+function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=state.currentMember;document.querySelector('#memberAvatar').textContent=state.currentMember[0]||'이';document.querySelector('#currentMemberRole').textContent=state.currentMember===MASTER?'마스터 · 온라인':'편집 가능 · 온라인';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
 
 const scheduleFields=[['time','시간','time'],['end','종료','time'],['place','장소','text','wide'],['category','카테고리','select'],['description','한 줄 설명','text','wide'],['duration','예상 체류시간(분)','number'],['nextTravel','다음 장소 이동시간(분)','number'],['transport','이동방법','text'],['cost','예상 비용(JPY)','number'],['reservation','예약 여부','select'],['reservationTime','예약 시간','time'],['map','Google Maps 링크','url','wide'],['official','공식/예약 링크','url','wide'],['memo','메모','textarea','wide']];
 function openScheduleEditor(id){
@@ -446,9 +468,10 @@ function openBookingEditor(){
 
 document.addEventListener('click',e=>{
   const pageBtn=e.target.closest('[data-page],[data-page-link]');if(pageBtn){navigate(pageBtn.dataset.page||pageBtn.dataset.pageLink);return}
-  if(e.target.closest('#menuButton')){document.querySelector('#sidebar').classList.toggle('open');syncResponsiveUI();return}
-  if(e.target.closest('#sidebarBackdrop')){document.querySelector('#sidebar').classList.remove('open');syncResponsiveUI();return}
-  if(e.target.closest('#shareButton')){document.querySelector('#shareUrl').value=location.href;document.querySelector('#shareDialog').showModal();return}
+  if(e.target.closest('#menuButton')){setMobileMenuOpen(!document.querySelector('#sidebar').classList.contains('open'));return}
+  if(e.target.closest('#sidebarBackdrop')){setMobileMenuOpen(false);return}
+  if(e.target.closest('#settingsButton')){setMobileMenuOpen(false);document.querySelector('#settingsDialog').showModal();return}
+  if(e.target.closest('#shareButton')){document.querySelector('#settingsDialog').close();document.querySelector('#shareUrl').value=location.href;document.querySelector('#shareDialog').showModal();return}
   if(e.target.closest('#activityButton')){renderActivity();document.querySelector('#activityDialog').showModal();return}
   if(e.target.closest('#quickAdd')||e.target.closest('[data-action="add-schedule"]')){openScheduleEditor();return}
   const sch=e.target.closest('[data-edit-schedule]');if(sch){openScheduleEditor(sch.dataset.editSchedule);return}
@@ -474,7 +497,7 @@ document.addEventListener('click',e=>{
 document.addEventListener('input',e=>{if(e.target.id==='exchangeRate'){state.exchangeRate=Math.max(0,Number(e.target.value)||0);renderStats();renderBudget();document.querySelector('#exchangeUpdated').textContent='입력 중'}if(e.target.id==='expenseInputAmount')updateExpenseForm()});
 document.addEventListener('change',e=>{
   if(e.target.matches('[data-booking-status]')){const r=state.reservations.find(x=>x.id===e.target.dataset.bookingStatus);r.status=e.target.value;syncReservationToSchedule(r);saveState(`${r.place} 예약 상태를 ${r.status}(으)로 변경했어요`);renderAll();toast('예약 상태와 연결 일정을 동기화했어요.');}
-  if(e.target.id==='exchangeRate'){state.exchangeRate=Math.max(0,Number(e.target.value)||initialData.exchangeRate);localStorage.setItem('sapporo-rate',state.exchangeRate);document.querySelector('#exchangeUpdated').textContent='방금';saveState(`공통 환율을 ¥1 = ₩${state.exchangeRate}(으)로 변경했어요`);renderAll();toast('메인 대시보드와 경비에 환율을 반영했어요.')}
+  if(e.target.id==='exchangeRate'){state.exchangeRate=Math.max(0,Number(e.target.value)||initialData.exchangeRate);if(!PREVIEW_MODE)localStorage.setItem('sapporo-rate',state.exchangeRate);document.querySelector('#exchangeUpdated').textContent='방금';saveState(`공통 환율을 ¥1 = ₩${state.exchangeRate}(으)로 변경했어요`);renderAll();toast('메인 대시보드와 경비에 환율을 반영했어요.')}
   if(e.target.id==='expenseScope'||e.target.id==='expenseCurrency')updateExpenseForm();
   if(e.target.id==='globalFoliageStatus'){activeFoliageStatus=e.target.value;renderFoliage();}
   if(e.target.matches('[data-foliage-status]')){const place=state.foliage.find(f=>f.id===e.target.dataset.foliageStatus);place.status=e.target.value;saveState(`${place.name} 단풍 상태를 ${place.status}(으)로 변경했어요`);renderAll();toast('단풍 카드와 지도 상세에 상태를 반영했어요.');}
@@ -500,16 +523,23 @@ document.querySelector('#editorForm').addEventListener('submit',e=>{
 });
 document.querySelector('#deleteItem').addEventListener('click',()=>{if(!editing||editing.isNew)return; if(!confirm('이 항목을 삭제할까요?'))return;const arr=editing.type==='schedule'?state.schedules:editing.type==='food'?state.food:editing.type==='drink'?state.drinks:editing.type==='expense'?state.expenses:state.reservations;if(editing.type==='schedule')state.reservations.filter(r=>r.scheduleId===editing.id).forEach(r=>r.scheduleId='');const idx=arr.findIndex(x=>x.id===editing.id);if(idx>=0)arr.splice(idx,1);saveState('항목을 삭제했어요');document.querySelector('#editorDialog').close();renderAll();toast('삭제했어요.');});
 document.querySelector('#memberButton').addEventListener('click',()=>{const i=MEMBERS.indexOf(state.currentMember);state.currentMember=MEMBERS[(i+1)%MEMBERS.length];saveState();renderAll();toast(`${state.currentMember} 님으로 전환했어요.`)});
-document.querySelector('#authButton').addEventListener('click',()=>document.querySelector('#authDialog').showModal());
+document.querySelector('#previewButton').addEventListener('click',()=>{
+  document.querySelector('#settingsDialog').close();
+  if(PREVIEW_MODE)return toast('현재 안전한 미리보기 모드로 실행 중이에요.');
+  window.open('mobile-preview.html','_blank','noopener');
+});
+document.querySelector('#authButton').addEventListener('click',()=>{document.querySelector('#settingsDialog').close();if(PREVIEW_MODE)return toast('미리보기에서는 서버 로그인을 실행하지 않아요.');document.querySelector('#authDialog').showModal()});
 document.querySelector('#closeAuth').addEventListener('click',()=>document.querySelector('#authDialog').close());
 document.querySelector('#authForm').addEventListener('submit',async e=>{
   e.preventDefault();
+  if(PREVIEW_MODE)return toast('미리보기에서는 로그인 이메일을 전송하지 않아요.');
   const email=document.querySelector('#authEmail').value.trim();
   const {error}=await supabaseClient.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split('#')[0]}});
   if(error){toast(`로그인 링크 전송 실패: ${error.message}`);return}
   document.querySelector('#authDialog').close();toast('이메일로 로그인 링크를 보냈어요.');
 });
 document.querySelector('#signOutButton').addEventListener('click',async()=>{
+  if(PREVIEW_MODE)return;
   await supabaseClient.auth.signOut();
   signedInUser=null;
   if(remoteChannel){await supabaseClient.removeChannel(remoteChannel);remoteChannel=null}
@@ -519,27 +549,30 @@ document.querySelector('#signOutButton').addEventListener('click',async()=>{
 window.addEventListener('beforeinstallprompt',event=>{
   event.preventDefault();
   deferredInstallPrompt=event;
-  document.querySelector('#installButton').hidden=false;
+  document.querySelector('#installButtonMeta').textContent='이 기기에 설치할 수 있습니다';
 });
 document.querySelector('#installButton').addEventListener('click',async()=>{
-  if(!deferredInstallPrompt)return;
+  document.querySelector('#settingsDialog').close();
+  if(!deferredInstallPrompt)return toast('브라우저 메뉴에서 홈 화면에 추가를 선택해 주세요.');
   deferredInstallPrompt.prompt();
   await deferredInstallPrompt.userChoice;
   deferredInstallPrompt=null;
-  document.querySelector('#installButton').hidden=true;
+  document.querySelector('#installButtonMeta').textContent='홈 화면에서 앱처럼 실행하기';
 });
 window.addEventListener('appinstalled',()=>{
   deferredInstallPrompt=null;
-  document.querySelector('#installButton').hidden=true;
+  document.querySelector('#installButtonLabel').textContent='앱 설치됨';
+  document.querySelector('#installButtonMeta').textContent='현재 기기에 설치되어 있습니다';
   toast('삿포로 여행 앱을 설치했어요.');
 });
 let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
-window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open')){document.querySelector('#sidebar').classList.remove('open');syncResponsiveUI()}});
-if('serviceWorker' in navigator&&location.protocol!=='file:'){
+window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
+if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
   window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
 syncResponsiveUI();
+if(PREVIEW_MODE){document.body.dataset.previewMode='true';updateAuthUI()}
 initializeSupabase();
