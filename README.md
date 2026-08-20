@@ -43,6 +43,16 @@ python -m http.server 8080
 
 서비스 워커는 앱의 HTML/CSS/JS/아이콘 등 정적 파일만 캐시합니다. Supabase 인증·데이터 API와 지도/CDN 요청은 캐시하지 않아 오래된 서버 데이터를 오프라인 화면에 고정하지 않습니다.
 
+## 모바일 UI 미리보기와 QA
+
+실제 서버나 DB에 연결하지 않고 모바일 앱 화면을 비교하려면 `mobile-preview.html`을 브라우저에서 직접 여세요.
+
+```powershell
+Start-Process ".\mobile-preview.html"
+```
+
+상단의 `320`, `360`, `390`, `430`, `768` 버튼으로 기기 폭을 바꾸고, 하단 내비게이션으로 홈·일정·지도·경비·상태 화면을 확인할 수 있습니다. 홈의 `전체 대시보드 / 오늘 중심` 전환, Loading·Empty·Error·Bottom Sheet 상태, Desktop 비교 화면도 포함합니다. `Debug`를 켜면 주요 컨테이너 경계와 viewport/content 폭이 표시되며, 가로 넘침이 감지되면 상단 상태가 `Horizontal Overflow Detected`로 바뀝니다. 이 파일은 자체 mock data만 사용하며 Supabase 인증·API·DB 쓰기를 실행하지 않습니다.
+
 ## 앱 구조
 
 - 대시보드: D-Day, 확정/예약/비용/체크 현황, 5일 마스터 타임라인
