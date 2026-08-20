@@ -37,6 +37,7 @@
       <button id="quickAdd">＋ 일정 추가</button>
       <button id="activity">◴ 최근 활동</button>
       <button id="settings">⚙ 설정</button>
+      <button id="login">☁ 서버 로그인</button>
       <button id="debug">Debug 윤곽선</button>
       <button id="audit">✓ 전체 화면 자동점검</button>
       <button class="danger" id="reset">↻ 데이터 초기화</button>
@@ -109,6 +110,7 @@
     document.querySelector('#quickAdd').addEventListener('click',()=>doc().querySelector('#quickAdd').click());
     document.querySelector('#activity').addEventListener('click',()=>doc().querySelector('#activityButton').click());
     document.querySelector('#settings').addEventListener('click',()=>{doc().querySelector('#settingsButton').click();setTimeout(inspect,220)});
+    document.querySelector('#login').addEventListener('click',()=>{doc().querySelector('#settingsButton').click();setTimeout(()=>doc().querySelector('#authButton').click(),100)});
     document.querySelector('#debug').addEventListener('click',event=>{debugEnabled=!debugEnabled;event.currentTarget.classList.toggle('active',debugEnabled);injectDebug();inspect()});
     document.querySelector('#audit').addEventListener('click',async event=>{
       const button=event.currentTarget,select=document.querySelector('#pageSelect'),original=select.value,pages=[...select.options].map(option=>option.value),results=[];
@@ -118,6 +120,7 @@
       go('map');await wait(350);doc().querySelector('#menuButton').click();await wait(350);const sidebar=doc().querySelector('#sidebar'),backdrop=doc().querySelector('#sidebarBackdrop'),maxScroll=Math.max(0,sidebar.scrollHeight-sidebar.clientHeight);results.push({label:'지도 위 카테고리',pass:sidebar.classList.contains('open')&&doc().body.classList.contains('menu-open')&&app().getComputedStyle(backdrop).display!=='none',detail:'메뉴·배경 잠금'});sidebar.scrollTop=maxScroll;await wait(120);const reachesBottom=maxScroll<=1||sidebar.scrollTop>=maxScroll-2;results.push({label:'메뉴 마지막 영역',pass:reachesBottom,detail:maxScroll>1?`내부 스크롤 ${Math.round(maxScroll)}px`:'한 화면에 전체 표시'});sidebar.scrollTop=0;doc().querySelector('#sidebarBackdrop').click();
       go('schedule');await wait(250);doc().querySelector('#quickAdd').click();await wait(180);const dialog=doc().querySelector('#editorDialog');results.push({label:'일정 추가 모달',pass:dialog.open,detail:dialog.open?'열림 정상':'열기 실패'});if(dialog.open)dialog.close();
       doc().querySelector('#settingsButton').click();await wait(180);const settingsDialog=doc().querySelector('#settingsDialog'),settingsRows=[...settingsDialog.querySelectorAll('.settings-row')],settingsLeak=findBoundaryLeaks(settingsDialog);results.push({label:'설정 메뉴',pass:settingsDialog.open&&settingsRows.length===4&&settingsLeak.length===0,detail:settingsDialog.open?`${settingsRows.length}개 기능 · 요소 경계 ${settingsLeak.length?'확인 필요':'정상'}`:'열기 실패'});if(settingsDialog.open)settingsDialog.close();
+      doc().querySelector('#settingsButton').click();await wait(80);doc().querySelector('#authButton').click();await wait(180);const authDialog=doc().querySelector('#authDialog'),authReady=authDialog.open&&doc().querySelector('#authEmail')&&doc().querySelector('#authOtp')&&doc().querySelector('#verifyOtpButton');results.push({label:'6자리 이메일 로그인',pass:Boolean(authReady),detail:authReady?'이메일·인증번호 입력 준비':'로그인 화면 확인 필요'});if(authDialog.open)authDialog.close();
       go(original);select.value=original;document.querySelector('#auditResults').innerHTML=results.map(item=>`<span class="${item.pass?'pass':'fail'}">${item.pass?'✓':'!'} ${item.label}<br><small>${item.detail}</small></span>`).join('');
       button.disabled=false;button.textContent='✓ 전체 화면 자동점검';inspect();
     });
@@ -131,6 +134,7 @@
         if(params.get('action')==='quick-add')setTimeout(()=>document.querySelector('#quickAdd').click(),350);
         if(params.get('action')==='activity')setTimeout(()=>document.querySelector('#activity').click(),350);
         if(params.get('action')==='settings')setTimeout(()=>document.querySelector('#settings').click(),350);
+        if(params.get('action')==='login')setTimeout(()=>document.querySelector('#login').click(),350);
         if(params.has('audit'))setTimeout(()=>document.querySelector('#audit').click(),350);
         inspect();
         try{doc().addEventListener('click',()=>setTimeout(inspect,250),true);doc().addEventListener('change',()=>setTimeout(inspect,250),true)}catch{}

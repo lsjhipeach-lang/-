@@ -83,7 +83,7 @@ Start-Process ".\mobile-preview.html"
 ## 저장과 협업
 
 - 로그인 전에는 `localStorage`에 저장되므로 현재 기기에서만 보입니다.
-- 서버 로그인 후에는 기존 Supabase의 `trip_states` 테이블과 동기화됩니다.
+- 서버 로그인은 이메일로 받은 6자리 인증번호를 앱 안에 입력하는 방식이며, 로그인 후 기존 Supabase의 `trip_states` 테이블과 동기화됩니다.
 - 노트북과 휴대폰 모두 서버 로그인하면 동일한 `sapporo-2026` 여행 데이터를 사용합니다.
 - 한 기기에서 저장한 변경은 Supabase Realtime을 통해 다른 로그인 기기에 반영됩니다.
 - 기존 Supabase URL, 공개 키, 인증 방식 및 DB 구조는 변경하지 않았습니다.

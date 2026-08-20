@@ -239,12 +239,20 @@ async function initializeSupabase(){
   });
 }
 function updateAuthUI(){
-  const label=document.querySelector('#authButtonLabel'),meta=document.querySelector('#authButtonMeta'),signOut=document.querySelector('#signOutButton');
-  if(PREVIEW_MODE){label.textContent='서버 로그인';meta.textContent='미리보기에서는 서버 연결이 차단됩니다';signOut.hidden=true;document.querySelector('#syncText').textContent='미리보기 · 서버 저장 안 함';return}
+  const label=document.querySelector('#authButtonLabel'),meta=document.querySelector('#authButtonMeta'),signOut=document.querySelector('#signOutButton'),loginFields=document.querySelector('#authLoginFields'),sessionInfo=document.querySelector('#authSessionInfo');
+  if(PREVIEW_MODE){label.textContent='서버 로그인';meta.textContent='미리보기에서는 서버 연결이 차단됩니다';signOut.hidden=true;loginFields.hidden=false;sessionInfo.hidden=true;document.querySelector('#syncText').textContent='미리보기 · 서버 저장 안 함';return}
   label.textContent=signedInUser?'로그인 계정':'서버 로그인';
   meta.textContent=signedInUser?signedInUser.email:'여러 기기에서 여행 데이터 동기화하기';
   signOut.hidden=!signedInUser;
+  loginFields.hidden=Boolean(signedInUser);
+  sessionInfo.hidden=!signedInUser;
+  document.querySelector('#authSessionEmail').textContent=signedInUser?.email||'';
   if(!signedInUser)document.querySelector('#syncText').textContent='이 기기에 저장됨';
+}
+function setOtpStep(open){
+  const step=document.querySelector('#otpStep'),email=document.querySelector('#authEmail'),send=document.querySelector('#sendOtpButton');
+  step.hidden=!open;email.readOnly=open;send.textContent=open?'인증번호 다시 받기':'인증번호 받기';
+  if(open)setTimeout(()=>document.querySelector('#authOtp').focus(),50);
 }
 const yen = n => `¥${Math.round(Number(n)||0).toLocaleString('ko-KR')}`;
 const won = (n,rate=state.exchangeRate) => `₩${Math.round((Number(n)||0)*(Number(rate)||initialData.exchangeRate)).toLocaleString('ko-KR')}`;
@@ -528,22 +536,35 @@ document.querySelector('#previewButton').addEventListener('click',()=>{
   if(PREVIEW_MODE)return toast('현재 안전한 미리보기 모드로 실행 중이에요.');
   window.open('mobile-preview.html','_blank','noopener');
 });
-document.querySelector('#authButton').addEventListener('click',()=>{document.querySelector('#settingsDialog').close();if(PREVIEW_MODE)return toast('미리보기에서는 서버 로그인을 실행하지 않아요.');document.querySelector('#authDialog').showModal()});
+document.querySelector('#authButton').addEventListener('click',()=>{document.querySelector('#settingsDialog').close();document.querySelector('#authDialog').showModal()});
 document.querySelector('#closeAuth').addEventListener('click',()=>document.querySelector('#authDialog').close());
 document.querySelector('#authForm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(PREVIEW_MODE)return toast('미리보기에서는 로그인 이메일을 전송하지 않아요.');
   const email=document.querySelector('#authEmail').value.trim();
-  const {error}=await supabaseClient.auth.signInWithOtp({email,options:{emailRedirectTo:location.href.split('#')[0]}});
-  if(error){toast(`로그인 링크 전송 실패: ${error.message}`);return}
-  document.querySelector('#authDialog').close();toast('이메일로 로그인 링크를 보냈어요.');
+  const button=document.querySelector('#sendOtpButton');button.disabled=true;button.textContent='전송 중…';
+  const {error}=await supabaseClient.auth.signInWithOtp({email});
+  button.disabled=false;
+  if(error){button.textContent=document.querySelector('#otpStep').hidden?'인증번호 받기':'인증번호 다시 받기';toast(`인증번호 전송 실패: ${error.message}`);return}
+  setOtpStep(true);toast('이메일로 6자리 인증번호를 보냈어요.');
+});
+document.querySelector('#authOtp').addEventListener('input',event=>{event.target.value=event.target.value.replace(/\D/g,'').slice(0,6)});
+document.querySelector('#verifyOtpButton').addEventListener('click',async()=>{
+  if(PREVIEW_MODE)return toast('미리보기에서는 인증번호를 확인하지 않아요.');
+  const email=document.querySelector('#authEmail').value.trim(),token=document.querySelector('#authOtp').value.trim(),button=document.querySelector('#verifyOtpButton');
+  if(!email||!/^[0-9]{6}$/.test(token))return toast('이메일과 6자리 인증번호를 확인해 주세요.');
+  button.disabled=true;button.textContent='확인 중…';
+  const {data,error}=await supabaseClient.auth.verifyOtp({email,token,type:'email'});
+  button.disabled=false;button.textContent='인증번호 확인';
+  if(error)return toast(`인증번호 확인 실패: ${error.message}`);
+  signedInUser=data.user;updateAuthUI();document.querySelector('#authDialog').close();setOtpStep(false);document.querySelector('#authOtp').value='';toast('서버 로그인과 데이터 연결이 완료됐어요.');
 });
 document.querySelector('#signOutButton').addEventListener('click',async()=>{
   if(PREVIEW_MODE)return;
   await supabaseClient.auth.signOut();
   signedInUser=null;
   if(remoteChannel){await supabaseClient.removeChannel(remoteChannel);remoteChannel=null}
-  updateAuthUI();document.querySelector('#authDialog').close();toast('서버에서 로그아웃했어요.');
+  setOtpStep(false);document.querySelector('#authOtp').value='';document.querySelector('#authEmail').value='';updateAuthUI();document.querySelector('#authDialog').close();toast('서버에서 로그아웃했어요.');
 });
 
 window.addEventListener('beforeinstallprompt',event=>{
@@ -569,7 +590,7 @@ let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
 if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=6').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=7').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
