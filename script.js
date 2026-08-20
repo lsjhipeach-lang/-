@@ -569,7 +569,7 @@ let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
 if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=6').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();

@@ -1,5 +1,5 @@
-const CACHE_NAME='sapporo-shell-v5-settings';
-const APP_SHELL=['./','./index.html','./style.css','./pwa.css','./script.js','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
+const CACHE_NAME='sapporo-shell-v6-asset-refresh';
+const APP_SHELL=['./','./index.html','./style.css?v=6','./pwa.css?v=6','./script.js?v=6','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
 
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
@@ -10,6 +10,14 @@ self.addEventListener('fetch',event=>{
   if(url.pathname.includes('/rest/v1/')||url.pathname.includes('/auth/v1/')||url.pathname.includes('/realtime/v1/'))return;
   if(event.request.mode==='navigate'){
     event.respondWith(fetch(event.request).catch(()=>caches.match('./index.html').then(response=>response||caches.match('./offline.html'))));
+    return;
+  }
+  const isAppCode=['style','script'].includes(event.request.destination);
+  if(isAppCode){
+    event.respondWith(fetch(event.request).then(response=>{
+      if(response.ok){const copy=response.clone();caches.open(CACHE_NAME).then(cache=>cache.put(event.request,copy));}
+      return response;
+    }).catch(()=>caches.match(event.request)));
     return;
   }
   event.respondWith(caches.match(event.request).then(cached=>cached||fetch(event.request).then(response=>{
