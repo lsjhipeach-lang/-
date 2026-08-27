@@ -95,16 +95,19 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .expense-row .amount{min-width:78px;text-align:right;white-space:nowrap}
   .expense-row .amount b{font-size:13px}.expense-row .amount small{font-size:10px}
 }
-/* App feature guide */
-.feature-guide-modal{width:min(700px,calc(100vw - 28px));max-height:min(760px,calc(100dvh - 28px));padding:0;overflow:auto}
-.feature-guide-shell{padding:26px}
+/* App connection guide */
+.feature-guide-modal{width:min(760px,calc(100vw - 28px));max-height:min(820px,calc(100dvh - 28px));padding:0;overflow:auto}
+.feature-guide-shell{padding:28px}
 .feature-guide-modal .modal-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
-.feature-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin:20px 0 4px}
-.feature-guide-grid article{display:flex;align-items:center;gap:12px;padding:14px;border:1px solid var(--line);border-radius:14px;background:var(--paper,#fff)}
-.feature-guide-grid article>span{display:grid;place-items:center;flex:0 0 40px;height:40px;border-radius:12px;background:#f2e9dc;font-size:20px}
-.feature-guide-grid b{display:block;font-size:14px;margin:0 0 3px}
-.feature-guide-grid p{margin:0;color:var(--muted);font-size:11px;line-height:1.45}
+.feature-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 14px}
+.feature-guide-grid article{display:flex;gap:12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--paper,#fff)}
+.feature-guide-grid article:last-child{grid-column:1/-1}
+.feature-guide-grid article>span{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:10px;background:#f2e9dc;color:var(--accent);font-size:11px;font-weight:700}
+.feature-guide-grid b{display:block;font-size:14px;margin:1px 0 5px}
+.feature-guide-grid p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.feature-guide-note{display:flex;gap:10px;padding:13px 15px;border-radius:13px;background:#eef4f0;color:#315346;font-size:12px;line-height:1.5}
+.feature-guide-note b{white-space:nowrap}
 .feature-guide-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
 .food-priority-control{display:flex;align-items:center;gap:4px;min-width:0}.food-priority-control select{min-width:0;width:100%;border:1px solid var(--line);border-radius:6px;background:var(--card);padding:6px 4px;font-size:10px}.dashboard-source-picker{padding:12px;border:1px solid #cbd9d0;border-radius:9px;background:#f1f6f2}.dashboard-source-picker small{color:var(--muted);font-size:10px;line-height:1.4}
 .source-filter-chips{display:flex;gap:5px;overflow:auto;padding:2px 0}.source-filter-chips button{flex:0 0 auto;border:1px solid var(--line);border-radius:16px;background:var(--card);padding:6px 9px;font-size:10px}.source-filter-chips button.active{background:var(--forest);border-color:var(--forest);color:white}.schedule-source-results{display:grid;max-height:230px;overflow:auto;border-radius:7px;background:var(--card)}.schedule-source-results button{display:flex;justify-content:space-between;gap:12px;text-align:left;border:0;border-bottom:1px solid var(--line);background:transparent;padding:9px 10px}.schedule-source-results button:last-child{border-bottom:0}.schedule-source-results button.active,.schedule-source-results button:hover{background:#e5eee8}.schedule-source-results button b{font-size:11px}.schedule-source-results button small{white-space:nowrap}.schedule-source-results>p{margin:0;padding:10px;color:var(--muted);font-size:10px}
-@media(max-width:620px){.feature-guide-modal{width:calc(100vw - 20px);max-height:calc(100dvh - 20px)}.feature-guide-shell{padding:18px}.feature-guide-modal .modal-head{margin-bottom:10px}.feature-guide-modal .modal-head h2{font-size:21px}.feature-guide-modal .modal-head p{font-size:11px}.feature-guide-grid{grid-template-columns:1fr;gap:7px;margin:14px 0 2px}.feature-guide-grid article{gap:10px;padding:10px 12px;border-radius:11px}.feature-guide-grid article>span{flex-basis:34px;height:34px;font-size:17px}.feature-guide-grid b{font-size:13px}.feature-guide-grid p{font-size:10px}.feature-guide-actions{flex-direction:column-reverse;gap:7px;margin-top:14px}.feature-guide-actions button{width:100%}}
+@media(max-width:620px){.feature-guide-shell{padding:20px}.feature-guide-grid{grid-template-columns:1fr}.feature-guide-grid article:last-child{grid-column:auto}.feature-guide-actions{flex-direction:column-reverse}.feature-guide-actions button{width:100%}.feature-guide-note{display:block}.feature-guide-note b{display:block;margin-bottom:4px}}
