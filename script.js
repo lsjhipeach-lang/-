@@ -30,6 +30,10 @@ const PREVIEW_MODE = new URLSearchParams(location.search).get('preview') === '1'
 const SUPABASE_URL = 'https://rwmkfgnjsjfbipeybqqk.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable__P7HGi9sReXExdeGLnO9rQ_iLtYeQSH';
 const TRIP_ID = 'sapporo-2026';
+const STORAGE_KEY = 'sapporo-trip-v3';
+const BACKUP_KEY = 'sapporo-trip-v3-last-good';
+const HISTORY_KEY = 'sapporo-trip-v3-history';
+const MAX_LOCAL_BACKUPS = 12;
 const supabaseClient = PREVIEW_MODE ? null : window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let signedInUser = null;
 let remoteChannel = null;
@@ -162,6 +166,7 @@ const initialData = {
   ]
 };
 
+let recoveredStorageNotice = '';
 let state = loadState();
 let activeDay;
 syncTripDates();
@@ -176,10 +181,29 @@ let editing = null;
 let mainMap, susukinoMap, mapMarkers = [], drinkMapMarkers = [];
 const openChecklistGroups = new Set(['의류 · 방한']);
 
+function validStoredState(value){return value&&typeof value==='object'&&Array.isArray(value.schedules)&&Array.isArray(value.expenses)&&Array.isArray(value.reservations)}
+function readStoredJson(key){try{return JSON.parse(localStorage.getItem(key))}catch{return null}}
+function persistLocalState(next,{keepPrevious=true}={}){
+  if(PREVIEW_MODE||!validStoredState(next))return;
+  const previous=readStoredJson(STORAGE_KEY);
+  if(keepPrevious&&validStoredState(previous)&&JSON.stringify(previous)!==JSON.stringify(next)){
+    const history=readStoredJson(HISTORY_KEY),items=Array.isArray(history)?history:[];
+    items.unshift({savedAt:new Date().toISOString(),data:previous});
+    localStorage.setItem(HISTORY_KEY,JSON.stringify(items.slice(0,MAX_LOCAL_BACKUPS)));
+  }
+  localStorage.setItem(STORAGE_KEY,JSON.stringify(next));
+  localStorage.setItem(BACKUP_KEY,JSON.stringify(next));
+}
+
 function loadState(){
   if(PREVIEW_MODE)return structuredClone(initialData);
   try {
-    const saved = JSON.parse(localStorage.getItem('sapporo-trip-v3'));
+    let saved = readStoredJson(STORAGE_KEY);
+    if(!validStoredState(saved)){
+      const lastGood=readStoredJson(BACKUP_KEY),history=readStoredJson(HISTORY_KEY);
+      saved=validStoredState(lastGood)?lastGood:Array.isArray(history)&&validStoredState(history[0]?.data)?history[0].data:null;
+      if(saved){persistLocalState(saved,{keepPrevious:false});recoveredStorageNotice='기기 복구본에서 여행 데이터를 되살렸어요.'}
+    }
     if(!saved) return structuredClone(initialData);
     if(saved.version === initialData.version){
       saved.tripStart=saved.tripStart||initialData.tripStart;
@@ -189,10 +213,10 @@ function loadState(){
       saved.reservations?.forEach(r=>{if(!r.scheduleId&&reservationLinks[r.id])r.scheduleId=reservationLinks[r.id]});
       saved.expenses?.forEach(e=>{e.scope=e.scope||'common';e.owner=e.scope==='personal'?(e.owner||e.payer):'';e.inputCurrency=e.inputCurrency||'JPY';e.inputAmount=Number(e.inputAmount??e.amount);e.participants=e.scope==='personal'?[e.owner]:[...MEMBERS]});
       saved.savedPlaces=Array.isArray(saved.savedPlaces)?saved.savedPlaces:[];
-      return saved;
+      persistLocalState(saved,{keepPrevious:false});return saved;
     }
     const migrated = structuredClone(initialData);
-    ['schedules','foliage','food','drinks','savedPlaces'].forEach(key=>{ if(Array.isArray(saved[key])) migrated[key]=saved[key] });
+    ['schedules','foliage','food','drinks','savedPlaces','checklist'].forEach(key=>{ if(Array.isArray(saved[key])) migrated[key]=saved[key] });
     const memberMap={'김도윤':'이승재','박준호':'이승재','이서연':'윤지원','최유진':'윤지원','이승재':'이승재','윤지원':'윤지원'};
     const reservationLinks={r2:'s2',r3:'s3',r4:'s9',r5:'s10'};
     if(Array.isArray(saved.reservations)) migrated.reservations=saved.reservations.map(r=>({...r,scheduleId:r.scheduleId||reservationLinks[r.id]||'',people:MEMBERS.length,booker:memberMap[r.booker]||MASTER}));
@@ -201,7 +225,7 @@ function loadState(){
     migrated.exchangeRate=Number(saved.exchangeRate||localStorage.getItem('sapporo-rate'))||initialData.exchangeRate;
     migrated.tripStart=saved.tripStart||initialData.tripStart;
     migrated.tripEnd=saved.tripEnd||initialData.tripEnd;
-    return migrated;
+    persistLocalState(migrated);return migrated;
   }
   catch { return structuredClone(initialData); }
 }
@@ -213,7 +237,8 @@ function syncTripDates(){
 }
 async function saveState(action){
   if(action){ state.activity.unshift({member:state.currentMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); }
-  if(!PREVIEW_MODE)localStorage.setItem('sapporo-trip-v3', JSON.stringify(state));
+  state.updatedAt=new Date().toISOString();
+  persistLocalState(state);
   const syncText=document.querySelector('#syncText');
   syncText.textContent=PREVIEW_MODE?'미리보기 · 새로고침 시 초기화':signedInUser?'서버 저장 중…':'이 기기에 저장됨';
   if(signedInUser&&supabaseClient){
@@ -229,15 +254,19 @@ if(channel.addEventListener) channel.addEventListener('message',e=>{if(e.data?.t
 async function loadRemoteState(){
   if(!signedInUser||!supabaseClient)return;
   document.querySelector('#syncText').textContent='서버 데이터 확인 중…';
-  const {data,error}=await supabaseClient.from('trip_states').select('data').eq('trip_id',TRIP_ID).maybeSingle();
+  const {data,error}=await supabaseClient.from('trip_states').select('data,updated_at').eq('trip_id',TRIP_ID).maybeSingle();
   if(error){document.querySelector('#syncText').textContent='서버 연결 실패 · 기기 데이터 사용 중';console.error(error);return}
-  if(data?.data){state=data.data;if(!PREVIEW_MODE)localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버와 동기화됨'}
+  if(data?.data){
+    const localTime=Date.parse(state.updatedAt||0)||0,remoteTime=Date.parse(data.data.updatedAt||data.updated_at||0)||0;
+    if(localTime>remoteTime+1000){await saveState('기기의 최신 데이터를 서버에 복구했어요');document.querySelector('#syncText').textContent='기기 최신 데이터를 서버에 저장함';return}
+    persistLocalState(data.data);state=data.data;renderAll();document.querySelector('#syncText').textContent='서버 백업과 동기화됨';toast('서버에 보관된 여행 데이터를 불러왔어요.');
+  }
   else await saveState('기존 기기 데이터를 서버로 가져왔어요');
 }
 function subscribeRemote(){
   if(!supabaseClient||remoteChannel)return;
   remoteChannel=supabaseClient.channel('trip-state-live').on('postgres_changes',{event:'*',schema:'public',table:'trip_states',filter:`trip_id=eq.${TRIP_ID}`},payload=>{
-    if(payload.new?.data){state=payload.new.data;if(!PREVIEW_MODE)localStorage.setItem('sapporo-trip-v3',JSON.stringify(state));renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}
+    if(payload.new?.data){const incomingTime=Date.parse(payload.new.data.updatedAt||payload.new.updated_at||0)||0,currentTime=Date.parse(state.updatedAt||0)||0;if(incomingTime>=currentTime){persistLocalState(payload.new.data);state=payload.new.data;renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}}
   }).subscribe();
 }
 async function initializeSupabase(){
@@ -748,13 +777,14 @@ let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
 if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=12').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=13').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
 syncResponsiveUI();
 if(PREVIEW_MODE){document.body.dataset.previewMode='true';updateAuthUI()}
 initializeSupabase();
+if(recoveredStorageNotice)setTimeout(()=>toast(recoveredStorageNotice),700);
 
 const FEATURE_GUIDE_HIDE_KEY='sapporo-feature-guide-hidden-date';
 const localDateKey=()=>{const now=new Date();return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`};
