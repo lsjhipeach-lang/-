@@ -147,7 +147,8 @@
       <div class="section-heading page-intro"><div><p class="eyebrow">TRIP WALLET</p><h1>경비</h1><p>공동·개인 지출을 엔화와 원화로 기록하고 실제 부담액까지 계산합니다.</p></div><button class="primary" id="addExpense">＋ 지출 추가</button></div>
       <div class="exchange"><span>적용 환율</span><b>¥1 =</b><input type="number" id="exchangeRate" value="9.3" step="0.1"><b>KRW</b><small>직접 입력 · 마지막 수정 <span id="exchangeUpdated">오늘</span></small></div>
       <div class="budget-stats" id="budgetStats"></div>
-      <div class="budget-layout"><section class="panel"><div class="panel-head"><h3>지출 내역</h3><div class="chips compact" id="expenseFilters"></div></div><div class="expense-list" id="expenseList"></div></section><section class="panel"><div class="panel-head"><h3>개인별 부담 · 정산</h3><span class="soft-tag">2명</span></div><div id="settlement"></div></section></div>
+      <section class="panel expense-chart-panel"><div class="panel-head"><div><h3>카테고리별 지출 비중</h3><small>전체 사용금액 기준</small></div></div><div class="expense-chart" id="expenseChart"></div></section>
+      <div class="budget-layout"><section class="panel"><div class="panel-head"><h3>지출 내역</h3><button class="ghost expense-filter-reset" type="button" id="resetExpenseFilters">초기화</button></div><div class="expense-filter-bar" id="expenseFilters"></div><div class="expense-result-summary" id="expenseResultSummary"></div><div class="expense-list" id="expenseList"></div></section><section class="panel"><div class="panel-head"><h3>개인별 부담 · 정산</h3><span class="soft-tag">2명</span></div><div id="settlement"></div></section></div>
     </section>
 
     <section class="page" id="page-booking">
@@ -186,6 +187,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=12"></script>
+  <script src="script.js?v=13"></script>
 </body>
 </html>
