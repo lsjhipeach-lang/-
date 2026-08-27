@@ -129,3 +129,7 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .maps-import-actions{grid-template-columns:1fr 1.45fr}.maps-import-actions .primary{white-space:normal}
   .feature-guide-shell{padding:16px}.feature-guide-grid{gap:7px;margin:14px 0 10px}.feature-guide-grid article{padding:11px 12px}.feature-guide-grid p{font-size:11px;line-height:1.45}.feature-guide-note{padding:11px 12px}.feature-guide-actions{margin-top:12px}
 }
+
+/* Schedule order is time-based; editing a card is the only way to change time. */
+@media(min-width:1181px){.schedule-row{grid-template-columns:70px 7px 1.2fr .8fr .7fr 34px}}
+@media(min-width:768px) and (max-width:1180px){.schedule-row{grid-template-columns:58px 6px minmax(0,1fr) minmax(110px,.7fr) auto 32px}}
