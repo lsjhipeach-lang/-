@@ -1,0 +1,2 @@
+[functions.places-enrich]
+verify_jwt = true

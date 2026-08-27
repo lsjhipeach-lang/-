@@ -56,6 +56,7 @@ const initialData = {
   tripEnd: '2026-10-26',
   currentMember: '이승재',
   exchangeRate: 9.3,
+  savedPlaces: [],
   schedules: [
     { id:'s1',date:'2026-10-22',time:'14:00',end:'15:30',place:'신치토세 공항 → 삿포로',category:'move',description:'입국 후 JR로 삿포로역 이동',duration:90,nextTravel:10,transport:'JR 쾌속 에어포트',cost:1150,reservation:'확인 필요',reservationTime:'',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://www.jrhokkaido.co.jp/global/',memo:'2026 운임·시간표 출발 전 확인'},
     { id:'s2',date:'2026-10-22',time:'16:00',end:'17:00',place:'숙소 체크인',category:'hotel',description:'짐 정리 후 잠깐 휴식',duration:60,nextTravel:15,transport:'도보',cost:0,reservation:'예약 예정',reservationTime:'',map:'https://maps.google.com/?q=Sapporo+Station',official:'',memo:'숙소 확정 후 주소 입력'},
@@ -170,6 +171,7 @@ let activeFoliageStatus = '전체 상태';
 let activeDrinkCategory = '전체';
 let activeMapCategory = '전체';
 let activeExpenseFilters = {month:'all',member:'all',scope:'all',category:'all'};
+let pendingMapsImports = [];
 let editing = null;
 let mainMap, susukinoMap, mapMarkers = [], drinkMapMarkers = [];
 const openChecklistGroups = new Set(['의류 · 방한']);
@@ -186,10 +188,11 @@ function loadState(){
       const reservationLinks={r2:'s2',r3:'s3',r4:'s9',r5:'s10'};
       saved.reservations?.forEach(r=>{if(!r.scheduleId&&reservationLinks[r.id])r.scheduleId=reservationLinks[r.id]});
       saved.expenses?.forEach(e=>{e.scope=e.scope||'common';e.owner=e.scope==='personal'?(e.owner||e.payer):'';e.inputCurrency=e.inputCurrency||'JPY';e.inputAmount=Number(e.inputAmount??e.amount);e.participants=e.scope==='personal'?[e.owner]:[...MEMBERS]});
+      saved.savedPlaces=Array.isArray(saved.savedPlaces)?saved.savedPlaces:[];
       return saved;
     }
     const migrated = structuredClone(initialData);
-    ['schedules','foliage','food','drinks'].forEach(key=>{ if(Array.isArray(saved[key])) migrated[key]=saved[key] });
+    ['schedules','foliage','food','drinks','savedPlaces'].forEach(key=>{ if(Array.isArray(saved[key])) migrated[key]=saved[key] });
     const memberMap={'김도윤':'이승재','박준호':'이승재','이서연':'윤지원','최유진':'윤지원','이승재':'이승재','윤지원':'윤지원'};
     const reservationLinks={r2:'s2',r3:'s3',r4:'s9',r5:'s10'};
     if(Array.isArray(saved.reservations)) migrated.reservations=saved.reservations.map(r=>({...r,scheduleId:r.scheduleId||reservationLinks[r.id]||'',people:MEMBERS.length,booker:memberMap[r.booker]||MASTER}));
@@ -374,8 +377,63 @@ function renderDrinks(){
   const list=state.drinks.filter(d=>activeDrinkCategory==='전체'||d.category===activeDrinkCategory);
   document.querySelector('#drinkCards').innerHTML=list.map(d=>`<article class="drink-card"><div class="drink-card-head"><div><h3>${esc(d.name)}</h3><p>${esc(d.area)} · ${esc(d.mood)}</p></div><button class="vote-button ${d.voted?'voted':''}" data-vote="drink:${d.id}">👍 ${d.votes}</button></div><div class="detail-pairs"><div><small>주력 술</small><b>${esc(d.alcohol)}</b></div><div><small>추천 차수</small><b>${esc(d.stage)}</b></div><div><small>영업시간 / L.O.</small><b>${esc(d.hours)} / ${esc(d.lastOrder)}</b></div><div><small>예약 / 흡연</small><b>${esc(d.reservable)} / ${esc(d.smoking)}</b></div></div><p>${esc(d.note)}</p><div class="drink-card-actions"><a class="secondary" href="${d.map}" target="_blank" rel="noopener">지도 ↗</a><button class="secondary" data-edit-place="drink:${d.id}">상세·수정</button></div></article>`).join('');
 }
+function parseCsv(text){
+  const rows=[];let row=[],cell='',quoted=false;
+  for(let i=0;i<text.length;i++){const char=text[i],next=text[i+1];if(char==='"'&&quoted&&next==='"'){cell+='"';i++}else if(char==='"'){quoted=!quoted}else if(char===','&&!quoted){row.push(cell);cell=''}else if((char==='\n'||char==='\r')&&!quoted){if(char==='\r'&&next==='\n')i++;row.push(cell);if(row.some(value=>value.trim()))rows.push(row);row=[];cell=''}else cell+=char}
+  row.push(cell);if(row.some(value=>value.trim()))rows.push(row);if(rows.length<2)return[];
+  const headers=rows.shift().map(header=>header.trim().toLowerCase());
+  return rows.map(values=>Object.fromEntries(headers.map((header,index)=>[header,(values[index]||'').trim()])));
+}
+function takeoutValue(record,names){for(const name of names){const key=Object.keys(record).find(item=>item.toLowerCase()===name);if(key&&record[key]!==undefined)return String(record[key])}return''}
+function classifyImportedPlace(place){
+  const text=`${place.name} ${place.note} ${place.sourceList}`.toLowerCase();
+  if(/bar|pub|izakaya|brew|whisk|cocktail|sake|wine|beer|술|주점|바|이자카야|居酒屋|バー|酒/.test(text))return'drink';
+  if(/cafe|coffee|dessert|bakery|카페|커피|디저트|베이커리|喫茶|珈琲/.test(text))return'cafe';
+  if(/restaurant|ramen|sushi|curry|food|grill|dining|맛집|식당|라멘|스시|카레|징기스칸|食堂|料理|寿司|ラーメン/.test(text))return'food';
+  if(/hotel|hostel|resort|ryokan|숙소|호텔|료칸|旅館/.test(text))return'hotel';
+  if(/shop|mall|market|store|쇼핑|시장|백화점|商店|市場/.test(text))return'shop';
+  if(/station|airport|terminal|역|공항|駅|空港/.test(text))return'move';
+  return'tour';
+}
+function detectHokkaidoRegion(place){
+  const lat=Number(place.lat),lng=Number(place.lng);if(Number.isFinite(lat)&&Number.isFinite(lng)&&lat>=41.3&&lat<=45.7&&lng>=139.3&&lng<=146.2)return'hokkaido';
+  const text=`${place.name} ${place.note} ${place.address} ${place.sourceList}`.toLowerCase();
+  if(/hokkaido|北海道|홋카이도|삿포로|sapporo|札幌|오타루|otaru|小樽|하코다테|hakodate|函館|아사히카와|asahikawa|旭川|후라노|furano|富良野|비에이|biei|美瑛|노보리베츠|noboribetsu|登別|조잔케이|jozankei|定山渓|쿠시로|kushiro|釧路|오비히로|obihiro|帯広|치토세|chitose|千歳|니세코|niseko|ニセコ/.test(text))return'hokkaido';
+  if(/tokyo|東京|도쿄|osaka|大阪|오사카|kyoto|京都|교토|fukuoka|福岡|후쿠오카|nagoya|名古屋|나고야|okinawa|沖縄|오키나와|yokohama|横浜|요코하마/.test(text))return'outside';
+  return'unknown';
+}
+function normalizeTakeoutRecord(record,sourceList){
+  const name=takeoutValue(record,['title','name','place name','장소명'])||'이름 확인 필요',url=takeoutValue(record,['url','google maps url','link','지도 링크']),note=takeoutValue(record,['note','comment','description','메모']),address=takeoutValue(record,['address','formatted address','주소']),lat=takeoutValue(record,['latitude','lat','위도']),lng=takeoutValue(record,['longitude','lng','lon','경도']);
+  const place={id:uid('gm'),name,url:url||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`,note,address,lat:lat?Number(lat):null,lng:lng?Number(lng):null,sourceList,category:'tour',region:'unknown',selected:false};place.category=classifyImportedPlace(place);place.region=detectHokkaidoRegion(place);place.selected=place.region==='hokkaido';return place;
+}
+function flattenTakeoutJson(value,sourceList,result=[]){if(Array.isArray(value))value.forEach(item=>flattenTakeoutJson(item,sourceList,result));else if(value&&typeof value==='object'){if(takeoutValue(value,['title','name','place name'])||takeoutValue(value,['url','google maps url','link']))result.push(normalizeTakeoutRecord(value,sourceList));else Object.values(value).forEach(item=>flattenTakeoutJson(item,sourceList,result))}return result}
+async function parseTakeoutFiles(files){
+  const parsed=[];for(const file of files){const text=await file.text(),sourceList=file.name.replace(/\.(csv|json)$/i,'');try{if(file.name.toLowerCase().endsWith('.json'))parsed.push(...flattenTakeoutJson(JSON.parse(text),sourceList));else parsed.push(...parseCsv(text).map(record=>normalizeTakeoutRecord(record,sourceList)))}catch(error){console.warn(`Takeout parse failed: ${file.name}`,error)}}
+  const seen=new Set();return parsed.filter(place=>{const key=(place.url||place.name).toLowerCase().replace(/[?#].*$/,'');if(seen.has(key))return false;seen.add(key);return true});
+}
+function renderMapsImportReview(){
+  const counts={hokkaido:pendingMapsImports.filter(item=>item.region==='hokkaido').length,outside:pendingMapsImports.filter(item=>item.region==='outside').length,unknown:pendingMapsImports.filter(item=>item.region==='unknown').length},selected=pendingMapsImports.filter(item=>item.selected).length;
+  document.querySelector('#mapsImportSummary').innerHTML=`<b>홋카이도 ${counts.hokkaido}개</b><span>타지역 제외 ${counts.outside}개 · 지역 확인 필요 ${counts.unknown}개 · 선택 ${selected}개</span>`;
+  document.querySelector('#mapsImportList').innerHTML=pendingMapsImports.map((place,index)=>`<article class="maps-import-row ${place.region}"><input type="checkbox" data-import-select="${index}" ${place.selected?'checked':''} ${place.region!=='hokkaido'?'disabled':''}><div><b>${esc(place.name)}</b><small>${esc(place.address||place.sourceList)} · ${place.region==='hokkaido'?'홋카이도':place.region==='outside'?'타지역 제외':'지역 확인 필요'}</small></div><select data-import-category="${index}">${['food','drink','cafe','hotel','shop','tour','move'].map(category=>`<option value="${category}" ${place.category===category?'selected':''}>${CAT[category]?.label||category}</option>`).join('')}</select><a href="${place.url}" target="_blank" rel="noopener" aria-label="Google Maps에서 확인">↗</a></article>`).join('')||'<p class="empty-state">읽을 수 있는 장소가 없습니다. CSV 또는 JSON 내용을 확인해주세요.</p>';
+  document.querySelector('#confirmMapsImport').disabled=!selected;
+  document.querySelector('#verifyMapsRegions').disabled=!counts.unknown;
+}
+function categoryFromGoogleTypes(types=[]){const values=new Set(types);if([...values].some(type=>['bar','pub','night_club','liquor_store'].includes(type)))return'drink';if([...values].some(type=>['cafe','coffee_shop','bakery','dessert_shop'].includes(type)))return'cafe';if([...values].some(type=>['restaurant','meal_takeaway','ramen_restaurant','sushi_restaurant'].includes(type)))return'food';if([...values].some(type=>['hotel','lodging','resort_hotel'].includes(type)))return'hotel';if([...values].some(type=>['store','shopping_mall','market'].includes(type)))return'shop';if([...values].some(type=>['airport','train_station','transit_station','bus_station'].includes(type)))return'move';return'tour'}
+async function verifyImportedRegions(){
+  const candidates=pendingMapsImports.filter(place=>place.region==='unknown');if(!candidates.length)return;
+  if(!signedInUser){document.querySelector('#mapsImportDialog').close();document.querySelector('#authDialog').showModal();toast('지역 자동 확인은 기존 서버 로그인이 필요해요.');return}
+  const button=document.querySelector('#verifyMapsRegions');button.disabled=true;button.textContent='지역 확인 중…';let apiCalls=0,cached=0;
+  try{for(let offset=0;offset<candidates.length;offset+=20){const batch=candidates.slice(offset,offset+20),{data,error}=await supabaseClient.functions.invoke('places-enrich',{body:{places:batch.map(place=>({name:place.name,address:place.address}))}});if(error)throw error;apiCalls+=data?.usage?.apiCalls||0;cached+=data?.usage?.cached||0;(data?.results||[]).forEach((result,index)=>{if(!result)return;const place=batch[index];place.name=result.displayName?.text||place.name;place.address=result.formattedAddress||place.address;place.lat=result.location?.latitude??place.lat;place.lng=result.location?.longitude??place.lng;place.url=result.googleMapsUri||place.url;place.category=categoryFromGoogleTypes(result.types||[]);place.region=detectHokkaidoRegion(place);place.selected=place.region==='hokkaido'})}renderMapsImportReview();toast(`지역 확인 완료 · API ${apiCalls}회 · 캐시 ${cached}회`)}catch(error){console.error(error);toast(error?.context?.status===429?'월 500회 안전 한도에 도달했어요.':'지역 확인 서버를 아직 사용할 수 없어요.')}finally{button.textContent='홋카이도 지역 자동 확인';button.disabled=!pendingMapsImports.some(place=>place.region==='unknown')}}
 function stableMapPoint(id){const hash=String(id).split('').reduce((a,c)=>a+c.charCodeAt(0),0);return {lat:43.061+((hash%17)-8)*.00055,lng:141.354+((hash%19)-9)*.00065}}
-function allMapPlaces(){return [...state.foliage.map(f=>({...f,category:'tour',description:f.note})),...state.food.map(f=>({...f,category:'food',...(!f.lat?stableMapPoint(f.id):{}),description:f.menu})),...state.drinks.map(f=>({...f,category:'drink',description:`${f.alcohol} · ${f.stage}`}))]}
+function importGoogleMapsPlaces(){
+  const chosen=pendingMapsImports.filter(place=>place.selected&&place.region==='hokkaido'),existingKeys=new Set([...state.food,...state.drinks,...(state.savedPlaces||[])].flatMap(place=>[place.map||place.url,place.name].filter(Boolean).map(value=>String(value).toLowerCase().replace(/[?#].*$/,''))));let added=0,duplicates=0;
+  chosen.forEach(place=>{const keys=[place.url,place.name].map(value=>String(value||'').toLowerCase().replace(/[?#].*$/,''));if(keys.some(key=>key&&existingKeys.has(key))){duplicates++;return}keys.forEach(key=>key&&existingKeys.add(key));
+    if(place.category==='food')state.food.push({id:place.id,type:'food',name:place.name,menu:place.note||'메뉴 확인 필요',category:'Google Maps 가져오기',area:place.address||'홋카이도',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'확인 필요',reserved:false,wait:'확인 필요',rating:'확인 필요',review:`Google Maps · ${place.sourceList}`,map:place.url,booking:'',visit:'미정',priority:'candidate',stars:3,votes:0,memo:place.note||'Takeout에서 가져옴'});
+    else if(place.category==='drink')state.drinks.push({id:place.id,type:'drink',name:place.name,area:place.address||'홋카이도',mood:'확인 필요',alcohol:'확인 필요',menu:place.note||'메뉴 확인 필요',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'확인 필요',map:place.url,booking:'',priority:3,stage:'후보',category:'Google Maps 가져오기',votes:0,...(place.lat&&place.lng?{lat:place.lat,lng:place.lng}:stableMapPoint(place.id)),note:`${place.sourceList}에서 가져옴`});
+    else state.savedPlaces.push({id:place.id,name:place.name,category:place.category,area:place.address||'홋카이도',address:place.address,map:place.url,url:place.url,lat:place.lat,lng:place.lng,note:place.note||'Takeout에서 가져옴',sourceList:place.sourceList,status:'정보 확인 필요'});added++});
+  if(added){saveState(`Google Maps에서 홋카이도 장소 ${added}개를 가져왔어요`);renderAll()}document.querySelector('#mapsImportDialog').close();toast(`${added}개 추가${duplicates?` · 중복 ${duplicates}개 제외`:''}`);return {added,duplicates};
+}
+function allMapPlaces(){return [...state.foliage.map(f=>({...f,category:'tour',description:f.note})),...state.food.map(f=>({...f,category:'food',...(!f.lat?stableMapPoint(f.id):{}),description:f.menu})),...state.drinks.map(f=>({...f,category:'drink',description:`${f.alcohol} · ${f.stage}`})),...(state.savedPlaces||[]).map(p=>({...p,...(!p.lat?stableMapPoint(p.id):{}),description:p.note||p.sourceList}))]}
 function markerIcon(cat){return L.divIcon({className:'',html:`<div class="map-pin ${cat}"><i></i></div>`,iconSize:[22,22],iconAnchor:[11,22]})}
 function initMainMap(){
   if(!window.L)return; if(!mainMap){mainMap=L.map('mainMap',{zoomControl:true}).setView([43.0618,141.3545],13);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png',{attribution:'© OpenStreetMap contributors'}).addTo(mainMap)}
@@ -498,6 +556,9 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#sidebarBackdrop')){setMobileMenuOpen(false);return}
   if(e.target.closest('#settingsButton')){setMobileMenuOpen(false);document.querySelector('#settingsDialog').showModal();return}
   if(e.target.closest('#shareButton')){document.querySelector('#settingsDialog').close();document.querySelector('#shareUrl').value=location.href;document.querySelector('#shareDialog').showModal();return}
+  if(e.target.closest('#mapsImportButton')){document.querySelector('#settingsDialog').close();if(!pendingMapsImports.length)document.querySelector('#mapsImportFile').value='';renderMapsImportReview();document.querySelector('#mapsImportDialog').showModal();return}
+  if(e.target.closest('#verifyMapsRegions')){verifyImportedRegions();return}
+  if(e.target.closest('#confirmMapsImport')){importGoogleMapsPlaces();return}
   if(e.target.closest('#activityButton')){renderActivity();document.querySelector('#activityDialog').showModal();return}
   if(e.target.closest('#quickAdd')||e.target.closest('[data-action="add-schedule"]')){openScheduleEditor();return}
   const sch=e.target.closest('[data-edit-schedule]');if(sch){openScheduleEditor(sch.dataset.editSchedule);return}
@@ -518,6 +579,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#addExpense')){openExpenseEditor();return}
   const expense=e.target.closest('[data-edit-expense]');if(expense){openExpenseEditor(expense.dataset.editExpense);return}
   if(e.target.closest('#resetExpenseFilters')){activeExpenseFilters={month:'all',member:'all',scope:'all',category:'all'};renderBudget();return}
+  const importSelect=e.target.closest('[data-import-select]');if(importSelect){pendingMapsImports[Number(importSelect.dataset.importSelect)].selected=importSelect.checked;renderMapsImportReview();return}
   if(e.target.closest('#addChecklist')){const text=prompt('새 할 일을 입력하세요.');if(text){state.checklist.push({id:uid('c'),category:'기타',text,due:'날짜 미정',done:false,urgent:false});saveState(`${text} 할 일을 추가했어요`);renderAll()}return}
   if(e.target.closest('#copyLink')){navigator.clipboard?.writeText(location.href);toast('공유 링크를 복사했어요.');return}
   if(e.target.closest('#routeMode')){toast('지도에서 출발지와 도착지를 차례로 선택하세요. (경로 API 연결 필요)');return}
@@ -528,10 +590,12 @@ document.addEventListener('change',e=>{
   if(e.target.id==='exchangeRate'){state.exchangeRate=Math.max(0,Number(e.target.value)||initialData.exchangeRate);if(!PREVIEW_MODE)localStorage.setItem('sapporo-rate',state.exchangeRate);document.querySelector('#exchangeUpdated').textContent='방금';saveState(`공통 환율을 ¥1 = ₩${state.exchangeRate}(으)로 변경했어요`);renderAll();toast('메인 대시보드와 경비에 환율을 반영했어요.')}
   if(e.target.id==='expenseScope'||e.target.id==='expenseCurrency')updateExpenseForm();
   if(e.target.matches('[data-expense-filter]')){activeExpenseFilters[e.target.dataset.expenseFilter]=e.target.value;renderBudget();}
+  if(e.target.matches('[data-import-category]')){pendingMapsImports[Number(e.target.dataset.importCategory)].category=e.target.value;}
   if(e.target.id==='globalFoliageStatus'){activeFoliageStatus=e.target.value;renderFoliage();}
   if(e.target.matches('[data-foliage-status]')){const place=state.foliage.find(f=>f.id===e.target.dataset.foliageStatus);place.status=e.target.value;saveState(`${place.name} 단풍 상태를 ${place.status}(으)로 변경했어요`);renderAll();toast('단풍 카드와 지도 상세에 상태를 반영했어요.');}
 });
 document.querySelector('#foodSearch').addEventListener('input',renderFood);
+document.querySelector('#mapsImportFile').addEventListener('change',async e=>{const files=[...e.target.files];document.querySelector('#mapsImportSummary').textContent='파일을 분석하고 있어요…';pendingMapsImports=await parseTakeoutFiles(files);renderMapsImportReview();});
 document.querySelector('#tripPeriodForm').addEventListener('submit',e=>{
   e.preventDefault();const start=e.currentTarget.tripStart.value,end=e.currentTarget.tripEnd.value;
   if(!start||!end)return toast('시작일과 종료일을 모두 입력해주세요.');
