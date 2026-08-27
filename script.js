@@ -37,6 +37,9 @@ const MAX_LOCAL_BACKUPS = 12;
 const supabaseClient = PREVIEW_MODE ? null : window.supabase?.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
 let signedInUser = null;
 let remoteChannel = null;
+let remoteRevision = 0;
+let lastSyncedState = null;
+let serverSaveQueue = Promise.resolve();
 let deferredInstallPrompt = null;
 let otpSendPending = false;
 let otpVerifyPending = false;
@@ -168,6 +171,7 @@ const initialData = {
 
 let recoveredStorageNotice = '';
 let state = loadState();
+let activeMember = MEMBERS.includes(localStorage.getItem('sapporo-active-member'))?localStorage.getItem('sapporo-active-member'):MASTER;
 let activeDay;
 syncTripDates();
 let activeFoodPriority = 'all';
@@ -235,17 +239,47 @@ function syncTripDates(){
   TRIP_DATES=buildTripDates(state.tripStart,state.tripEnd);
   if(!TRIP_DATES.some(day=>day.date===activeDay))activeDay=TRIP_DATES[0]?.date||state.tripStart;
 }
-async function saveState(action){
-  if(action){ state.activity.unshift({member:state.currentMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); }
+const sameData=(left,right)=>JSON.stringify(left)===JSON.stringify(right);
+function mergeTripStates(base,local,remote){
+  if(!validStoredState(base))return structuredClone(local);
+  const merged=structuredClone(remote),keys=new Set([...Object.keys(base),...Object.keys(local)]);
+  keys.delete('updatedAt');
+  keys.forEach(key=>{
+    const before=base[key],after=local[key];if(sameData(before,after))return;
+    if(Array.isArray(before)&&Array.isArray(after)&&after.every(item=>item&&typeof item==='object'&&item.id)){
+      const beforeMap=new Map(before.map(item=>[item.id,item])),afterMap=new Map(after.map(item=>[item.id,item])),remoteMap=new Map((Array.isArray(merged[key])?merged[key]:[]).map(item=>[item.id,item]));
+      beforeMap.forEach((_item,id)=>{if(!afterMap.has(id))remoteMap.delete(id)});
+      afterMap.forEach((item,id)=>{if(!beforeMap.has(id)||!sameData(beforeMap.get(id),item))remoteMap.set(id,structuredClone(item))});
+      merged[key]=[...remoteMap.values()];return;
+    }
+    if(key==='activity'&&Array.isArray(after)){
+      const combined=[...after,...(Array.isArray(merged.activity)?merged.activity:[])],seen=new Set();merged.activity=combined.filter(item=>{const signature=`${item.member}|${item.action}|${item.at||item.time}`;if(seen.has(signature))return false;seen.add(signature);return true}).slice(0,20);return;
+    }
+    merged[key]=structuredClone(after);
+  });
+  merged.updatedAt=new Date().toISOString();return merged;
+}
+async function commitServerSnapshot(snapshot){
+  const expectedRevision=remoteRevision,{data,error}=await supabaseClient.from('trip_states').update({data:snapshot,updated_at:new Date().toISOString(),revision:expectedRevision+1}).eq('trip_id',TRIP_ID).eq('revision',expectedRevision).select('data,updated_at,revision').maybeSingle();
+  if(error)throw error;
+  if(data){remoteRevision=Number(data.revision)||expectedRevision+1;lastSyncedState=structuredClone(snapshot);return}
+  const {data:current,error:readError}=await supabaseClient.from('trip_states').select('data,updated_at,revision').eq('trip_id',TRIP_ID).maybeSingle();if(readError||!current)throw readError||new Error('동기화할 서버 데이터를 찾지 못했습니다.');
+  const merged=mergeTripStates(lastSyncedState,snapshot,current.data),retryRevision=Number(current.revision)||0,{data:saved,error:retryError}=await supabaseClient.from('trip_states').update({data:merged,updated_at:new Date().toISOString(),revision:retryRevision+1}).eq('trip_id',TRIP_ID).eq('revision',retryRevision).select('revision').maybeSingle();
+  if(retryError||!saved)throw retryError||new Error('동시 수정 병합을 다시 시도해야 합니다.');
+  remoteRevision=Number(saved.revision)||retryRevision+1;lastSyncedState=structuredClone(merged);
+  if((Date.parse(state.updatedAt||0)||0)<=(Date.parse(snapshot.updatedAt||0)||0)){state=merged;persistLocalState(state);renderAll()}
+  toast('다른 기기의 변경사항과 안전하게 합쳤어요.');
+}
+function queueServerSnapshot(snapshot){
+  serverSaveQueue=serverSaveQueue.then(()=>commitServerSnapshot(snapshot)).then(()=>{document.querySelector('#syncText').textContent='서버에 저장됨'}).catch(error=>{document.querySelector('#syncText').textContent='서버 저장 실패 · 기기 복구본 유지';console.error('Supabase save failed:',error)});return serverSaveQueue;
+}
+function saveState(action){
+  if(action){ state.activity.unshift({member:activeMember,action,time:'방금 전'}); state.activity=state.activity.slice(0,20); }
   state.updatedAt=new Date().toISOString();
   persistLocalState(state);
   const syncText=document.querySelector('#syncText');
   syncText.textContent=PREVIEW_MODE?'미리보기 · 새로고침 시 초기화':signedInUser?'서버 저장 중…':'이 기기에 저장됨';
-  if(signedInUser&&supabaseClient){
-    const {error}=await supabaseClient.from('trip_states').upsert({trip_id:TRIP_ID,data:state,updated_at:new Date().toISOString()});
-    syncText.textContent=error?'서버 저장 실패 · 기기에는 저장됨':'서버에 저장됨';
-    if(error) console.error('Supabase save failed:',error);
-  }
+  if(signedInUser&&supabaseClient)queueServerSnapshot(structuredClone(state));
   try { channel.postMessage({type:'state',state}); } catch {}
 }
 const channel = !PREVIEW_MODE&&'BroadcastChannel' in window ? new BroadcastChannel('sapporo-trip-sync') : {postMessage(){}};
@@ -254,29 +288,31 @@ if(channel.addEventListener) channel.addEventListener('message',e=>{if(e.data?.t
 async function loadRemoteState(){
   if(!signedInUser||!supabaseClient)return;
   document.querySelector('#syncText').textContent='서버 데이터 확인 중…';
-  const {data,error}=await supabaseClient.from('trip_states').select('data,updated_at').eq('trip_id',TRIP_ID).maybeSingle();
+  const {data,error}=await supabaseClient.from('trip_states').select('data,updated_at,revision').eq('trip_id',TRIP_ID).maybeSingle();
   if(error){document.querySelector('#syncText').textContent='서버 연결 실패 · 기기 데이터 사용 중';console.error(error);return}
   if(data?.data){
     const localTime=Date.parse(state.updatedAt||0)||0,remoteTime=Date.parse(data.data.updatedAt||data.updated_at||0)||0;
-    if(localTime>remoteTime+1000){await saveState('기기의 최신 데이터를 서버에 복구했어요');document.querySelector('#syncText').textContent='기기 최신 데이터를 서버에 저장함';return}
+    remoteRevision=Number(data.revision)||0;lastSyncedState=structuredClone(data.data);
+    if(localTime>remoteTime+1000){state.activity.unshift({member:activeMember,action:'기기의 최신 데이터를 서버에 복구했어요',time:'방금 전'});state.updatedAt=new Date().toISOString();persistLocalState(state);queueServerSnapshot(structuredClone(state));document.querySelector('#syncText').textContent='기기 최신 데이터를 서버에 저장 중…';return}
     persistLocalState(data.data);state=data.data;renderAll();document.querySelector('#syncText').textContent='서버 백업과 동기화됨';toast('서버에 보관된 여행 데이터를 불러왔어요.');
   }
-  else await saveState('기존 기기 데이터를 서버로 가져왔어요');
+  else{const {data:created,error:createError}=await supabaseClient.from('trip_states').insert({trip_id:TRIP_ID,data:state,updated_at:new Date().toISOString(),revision:0}).select('revision').maybeSingle();if(createError)throw createError;remoteRevision=Number(created?.revision)||0;lastSyncedState=structuredClone(state)}
 }
 function subscribeRemote(){
   if(!supabaseClient||remoteChannel)return;
   remoteChannel=supabaseClient.channel('trip-state-live').on('postgres_changes',{event:'*',schema:'public',table:'trip_states',filter:`trip_id=eq.${TRIP_ID}`},payload=>{
-    if(payload.new?.data){const incomingTime=Date.parse(payload.new.data.updatedAt||payload.new.updated_at||0)||0,currentTime=Date.parse(state.updatedAt||0)||0;if(incomingTime>=currentTime){persistLocalState(payload.new.data);state=payload.new.data;renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}}
+    if(payload.new?.data&&Number(payload.new.revision)>remoteRevision){const incoming=payload.new.data,hasLocalChanges=lastSyncedState&&!sameData(state,lastSyncedState);remoteRevision=Number(payload.new.revision);if(hasLocalChanges){const merged=mergeTripStates(lastSyncedState,state,incoming);lastSyncedState=structuredClone(incoming);state=merged;persistLocalState(state);renderAll();queueServerSnapshot(structuredClone(state))}else{lastSyncedState=structuredClone(incoming);persistLocalState(incoming);state=incoming;renderAll();document.querySelector('#syncText').textContent='서버 변경사항 반영됨'}}
   }).subscribe();
 }
 async function initializeSupabase(){
   if(!supabaseClient)return;
   const {data:{session}}=await supabaseClient.auth.getSession();
   signedInUser=session?.user||null;
+  if(signedInUser){const accountMember=localStorage.getItem(`sapporo-member-${signedInUser.id}`);if(MEMBERS.includes(accountMember))activeMember=accountMember}
   updateAuthUI();
   if(signedInUser){await loadRemoteState();subscribeRemote()}
   supabaseClient.auth.onAuthStateChange((_event,newSession)=>{
-    signedInUser=newSession?.user||null;updateAuthUI();
+    signedInUser=newSession?.user||null;if(signedInUser){const accountMember=localStorage.getItem(`sapporo-member-${signedInUser.id}`);if(MEMBERS.includes(accountMember))activeMember=accountMember}updateAuthUI();
     if(signedInUser){setTimeout(async()=>{await loadRemoteState();subscribeRemote()},0)}
   });
 }
@@ -541,7 +577,7 @@ function renderTripPeriod(){
   const firstNight=document.querySelector('#firstNightDate'),first=TRIP_DATES[0];if(firstNight&&first)firstNight.textContent=`${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(first.date)).toUpperCase()} · ${first.short}`;
   document.title=`SAPPORO / ${period}`;
 }
-function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=state.currentMember;document.querySelector('#memberAvatar').textContent=state.currentMember[0]||'이';document.querySelector('#currentMemberRole').textContent=state.currentMember===MASTER?'마스터 · 온라인':'편집 가능 · 온라인';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
+function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=activeMember;document.querySelector('#memberAvatar').textContent=activeMember[0]||'이';document.querySelector('#currentMemberRole').textContent=activeMember===MASTER?'마스터 · 이 기기':'편집자 · 이 기기';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
 
 const scheduleFields=[['time','시간','time'],['end','종료','time'],['place','장소','text','wide'],['category','카테고리','select'],['description','한 줄 설명','text','wide'],['duration','예상 체류시간(분)','number'],['nextTravel','다음 장소 이동시간(분)','number'],['transport','이동방법','text'],['cost','예상 비용(JPY)','number'],['reservation','예약 여부','select'],['reservationTime','예약 시간','time'],['map','Google Maps 링크','url','wide'],['official','공식/예약 링크','url','wide'],['memo','메모','textarea','wide']];
 function parseSmartDate(value){
@@ -596,7 +632,7 @@ function openPlaceEditor(kind,id){
   document.querySelector('#editorFields').innerHTML=keys.map(([k,l])=>`<label class="field ${['name','map','memo','note'].includes(k)?'wide':''}"><span>${l}</span>${k==='priority'?`<select name="priority"><option value="must" ${item.priority==='must'?'selected':''}>무조건 가기</option><option value="maybe" ${item.priority==='maybe'?'selected':''}>시간 되면</option><option value="candidate" ${item.priority==='candidate'?'selected':''}>후보</option></select>`:`<input name="${k}" value="${esc(item[k])}">`}</label>`).join('');document.querySelector('#editorDialog').showModal();
 }
 function openExpenseEditor(id){
-  const item=id?state.expenses.find(e=>e.id===id):{id:uid('e'),date:new Date().toISOString().slice(0,10),payer:state.currentMember,owner:state.currentMember,scope:'common',inputCurrency:'JPY',inputAmount:0,amount:0,category:'식비',description:'',participants:[...MEMBERS],settled:false};
+  const item=id?state.expenses.find(e=>e.id===id):{id:uid('e'),date:new Date().toISOString().slice(0,10),payer:activeMember,owner:activeMember,scope:'common',inputCurrency:'JPY',inputAmount:0,amount:0,category:'식비',description:'',participants:[...MEMBERS],settled:false};
   const currency=item.inputCurrency||'JPY',inputAmount=Number(item.inputAmount??item.amount??0),scope=item.scope||'common';
   editing={type:'expense',id:item.id,isNew:!id,item};document.querySelector('#modalEyebrow').textContent=id?'EDIT EXPENSE':'NEW EXPENSE';document.querySelector('#modalTitle').textContent=id?'지출 수정':'지출 추가';document.querySelector('#deleteItem').style.visibility=id?'visible':'hidden';
   document.querySelector('#editorFields').innerHTML=`<label class="field"><span>지출 구분</span><select name="scope" id="expenseScope"><option value="common" ${scope==='common'?'selected':''}>공동 지출 · 한 명이 결제</option><option value="personal" ${scope==='personal'?'selected':''}>개인 지출</option>${!id?'<option value="individual_shared">같이 사용 · 각자 결제</option>':''}</select></label><label class="field"><span>날짜</span>${smartDateInput('date',item.date)}</label><label class="field" id="expensePayerField"><span>결제자</span><select name="payer">${MEMBERS.map(m=>`<option ${m===item.payer?'selected':''}>${m}</option>`).join('')}</select></label><label class="field" id="expenseOwnerField"><span>개인 지출 대상</span><select name="owner">${MEMBERS.map(m=>`<option ${m===(item.owner||item.payer)?'selected':''}>${m}</option>`).join('')}</select></label><label class="field"><span>입력 통화</span><select name="inputCurrency" id="expenseCurrency"><option value="JPY" ${currency==='JPY'?'selected':''}>JPY · 엔화</option><option value="KRW" ${currency==='KRW'?'selected':''}>KRW · 원화</option></select></label><label class="field"><span id="expenseAmountLabel">금액</span><input type="number" min="0" step="1" name="inputAmount" id="expenseInputAmount" value="${inputAmount}" required></label><div class="expense-preview wide" id="expenseConversionPreview"></div><label class="field"><span>카테고리</span><select name="category">${['항공','숙소','교통','식비','술','관광','쇼핑','기타'].map(c=>`<option ${c===item.category?'selected':''}>${c}</option>`).join('')}</select></label><label class="field" id="expenseSettledField"><span>정산 상태</span><select name="settled"><option value="false" ${!item.settled?'selected':''}>미정산</option><option value="true" ${item.settled?'selected':''}>정산 완료</option></select></label><label class="field wide"><span>설명</span><input name="description" value="${esc(item.description)}" required placeholder="예: 공항버스 (각자 티머니)"></label>`;
@@ -608,7 +644,7 @@ function updateExpenseForm(){
   document.querySelector('#expenseConversionPreview').innerHTML=split?`<small>${MEMBERS.length}명이 각자 결제 · 정산금 없음</small><b>1인 ₩${Math.round(krw).toLocaleString('ko-KR')} <span>·</span> 전체 ₩${Math.round(krw*MEMBERS.length).toLocaleString('ko-KR')}</b>`:`<small>환율 ¥1 = ₩${rate}</small><b>₩${Math.round(krw).toLocaleString('ko-KR')} <span>≈</span> ${yen(jpy)}</b>`;
 }
 function openBookingEditor(id){
-  const item=id?state.reservations.find(r=>r.id===id):{id:uid('r'),scheduleId:'',place:'',date:activeDay,time:'18:30',people:MEMBERS.length,booker:state.currentMember,method:'확인 필요',number:'',link:'',deadline:'확인 필요',note:'',status:'조사 필요'};
+  const item=id?state.reservations.find(r=>r.id===id):{id:uid('r'),scheduleId:'',place:'',date:activeDay,time:'18:30',people:MEMBERS.length,booker:activeMember,method:'확인 필요',number:'',link:'',deadline:'확인 필요',note:'',status:'조사 필요'};
   if(!item)return;
   const linkedSchedule=state.schedules.find(s=>s.id===item.scheduleId),scheduleLabel=linkedSchedule?`${linkedSchedule.date.slice(5)} ${linkedSchedule.time} · ${linkedSchedule.place}`:'';
   editing={type:'booking',id:item.id,isNew:!id,item};document.querySelector('#modalEyebrow').textContent=id?'EDIT RESERVATION':'NEW RESERVATION';document.querySelector('#modalTitle').textContent=id?'예약 수정':'예약 추가';document.querySelector('#deleteItem').style.visibility=id?'visible':'hidden';
@@ -690,7 +726,7 @@ document.querySelector('#editorForm').addEventListener('submit',e=>{
 });
 document.querySelector('#deleteItem').addEventListener('click',()=>{if(!editing||editing.isNew)return; if(!confirm('이 항목을 삭제할까요?'))return;const arr=editing.type==='schedule'?state.schedules:editing.type==='food'?state.food:editing.type==='drink'?state.drinks:editing.type==='expense'?state.expenses:state.reservations;if(editing.type==='schedule')state.reservations.filter(r=>r.scheduleId===editing.id).forEach(r=>r.scheduleId='');const idx=arr.findIndex(x=>x.id===editing.id);if(idx>=0)arr.splice(idx,1);saveState('항목을 삭제했어요');document.querySelector('#editorDialog').close();renderAll();toast('삭제했어요.');});
 document.querySelectorAll('[data-close-editor]').forEach(button=>button.addEventListener('click',()=>document.querySelector('#editorDialog').close()));
-document.querySelector('#memberButton').addEventListener('click',()=>{const i=MEMBERS.indexOf(state.currentMember);state.currentMember=MEMBERS[(i+1)%MEMBERS.length];saveState();renderAll();toast(`${state.currentMember} 님으로 전환했어요.`)});
+document.querySelector('#memberButton').addEventListener('click',()=>{const i=MEMBERS.indexOf(activeMember);activeMember=MEMBERS[(i+1)%MEMBERS.length];localStorage.setItem('sapporo-active-member',activeMember);if(signedInUser)localStorage.setItem(`sapporo-member-${signedInUser.id}`,activeMember);renderAll();toast(`이 기기의 사용자를 ${activeMember}(으)로 설정했어요.`)});
 document.querySelector('#previewButton').addEventListener('click',()=>{
   document.querySelector('#settingsDialog').close();
   if(PREVIEW_MODE)return toast('현재 안전한 미리보기 모드로 실행 중이에요.');
