@@ -364,7 +364,7 @@ function navigate(page){
   const names={home:['TRIP OVERVIEW','여행 대시보드'],schedule:['DAY BY DAY','날짜별 일정'],foliage:['AUTUMN WATCH','단풍 스팟'],food:['FOOD SHORTLIST','맛집 DB'],drinks:['NIGHT ROUTES','술 대시보드'],map:['ALL PLACES','통합 지도'],budget:['TRIP WALLET','경비'],booking:['RESERVATION BOARD','예약 관리'],checklist:['READY TO GO','출발 전 체크리스트']};
   document.querySelector('#pageEyebrow').textContent=names[page][0]; document.querySelector('#pageTitle').textContent=names[page][1];
   setMobileMenuOpen(false); window.scrollTo({top:0,behavior:'smooth'});
-  document.querySelector('#mobileNow').classList.toggle('visible',page==='home'&&matchMedia('(max-width: 767px)').matches);
+  document.querySelector('#mobileNow').classList.toggle('visible',page==='home'&&matchMedia('(max-width: 767px)').matches&&inTripRange(dateKey(new Date())));
   if(page==='map') setTimeout(()=>{initMainMap();mainMap?.invalidateSize()},80);
   if(page==='drinks') setTimeout(()=>{initSusukinoMap();susukinoMap?.invalidateSize()},80);
 }
@@ -373,14 +373,14 @@ function syncResponsiveUI(){
   const mobile=matchMedia('(max-width: 767px)').matches;
   const sidebar=document.querySelector('#sidebar');
   setMobileMenuOpen(mobile&&sidebar.classList.contains('open'));
-  document.querySelector('#mobileNow').classList.toggle('visible',mobile&&document.querySelector('#page-home').classList.contains('active'));
+  document.querySelector('#mobileNow').classList.toggle('visible',mobile&&document.querySelector('#page-home').classList.contains('active')&&inTripRange(dateKey(new Date())));
   requestAnimationFrame(()=>{mainMap?.invalidateSize();susukinoMap?.invalidateSize()});
 }
 
 function renderStats(){
   const tripSchedules=state.schedules.filter(s=>inTripRange(s.date)),tripReservations=state.reservations.filter(r=>inTripRange(r.date));
-  const confirmed=tripSchedules.filter(s=>!['조사 필요','확인 필요'].includes(s.reservation)).length;
-  const need=tripReservations.filter(r=>r.status!=='취소').length, done=tripReservations.filter(r=>r.status==='예약 완료').length;
+  const confirmed=tripSchedules.filter(s=>['예약 완료','불필요'].includes(s.reservation)).length;
+  const need=tripReservations.filter(r=>!['예약 완료','취소'].includes(r.status)).length, done=tripReservations.filter(r=>r.status==='예약 완료').length;
   const planned=tripSchedules.reduce((a,b)=>a+(Number(b.cost)||0),0)*MEMBERS.length;
   const spent=state.expenses.reduce((a,b)=>a+expenseJPY(b),0);
   const todo=state.checklist.filter(c=>!c.done).length;
@@ -391,11 +391,13 @@ function renderStats(){
 }
 function renderTimeline(){
   document.querySelector('#masterTimeline').innerHTML=TRIP_DATES.map(day=>{
-    const events=state.schedules.filter(s=>s.date===day.date).slice(0,5);
+    const events=state.schedules.filter(s=>s.date===day.date).sort((a,b)=>a.time.localeCompare(b.time)).slice(0,5);
     return `<div class="timeline-day"><div class="timeline-date"><div><b>${day.label}</b><span> · ${day.weekday}</span></div><b>${day.short}</b></div>${events.map(s=>`<div class="timeline-event" data-edit-schedule="${s.id}"><span>${s.time}</span><i class="${s.category}"></i><div><b>${esc(s.place)}</b><small>${CAT[s.category]?.label||s.category}</small></div></div>`).join('')}</div>`
   }).join('');
-  const route=['18:30 · 저녁 후보','20:20 · 사케 1차','22:15 · 위스키 바','23:40 · 숙소'];
-  document.querySelector('#nightRoute').innerHTML=route.map((r,i)=>`<div class="route-stop"><i>${i+1}</i><b>${r.split(' · ')[1]}</b><small>${r.split(' · ')[0]}</small></div>`).join('');
+  const firstDay=TRIP_DATES[0],route=state.schedules.filter(item=>item.date===firstDay?.date&&item.time>='17:00').sort((a,b)=>a.time.localeCompare(b.time)).slice(0,4);
+  document.querySelector('#homeNightTitle').textContent=firstDay?`${firstDay.short} · ${firstDay.theme}`:'첫날 저녁 일정';
+  document.querySelector('#nightRoute').innerHTML=route.length?route.map((item,i)=>`<div class="route-stop"><i>${i+1}</i><b>${esc(item.place)}</b><small>${item.time}</small></div>`).join(''):'<p class="empty-state">첫날 저녁 일정을 추가해보세요.</p>';
+  document.querySelector('#homeNightSummary').innerHTML=route.length?`<span>복귀 예상</span><p><b>${route.at(-1).end||route.at(-1).time}</b> · ${route.length}개 일정</p>`:'<span>일정</span><p>아직 등록된 저녁 일정이 없습니다.</p>';
 }
 function renderHomeChecklist(){
   const list=state.checklist.filter(c=>!c.done).slice(0,4);
@@ -406,11 +408,15 @@ function renderDayTabs(){document.querySelector('#dayTabs').innerHTML=TRIP_DATES
 function dayData(){return state.schedules.filter(s=>s.date===activeDay).sort((a,b)=>a.time.localeCompare(b.time))}
 function renderSchedule(){
   renderDayTabs(); const items=dayData(); const day=TRIP_DATES.find(d=>d.date===activeDay);
-  const move=items.reduce((a,b)=>a+(Number(b.nextTravel)||0),0), cost=items.reduce((a,b)=>a+(Number(b.cost)||0),0);
-  const drink=items.find(s=>s.category==='drink')?.place||'미정';
-  const summary=[['오늘의 핵심 일정',day.theme],['총 예상 이동',`${move}분`],['1인 예상 비용',`${won(cost)} · ${yen(cost)}`],['예상 도보량',move>120?'12,000보+':'8,000~10,000보'],['저녁 음주 지역',drink.includes('오타루')?'오타루':'스스키노'],['숙소 복귀','23:40 전후']];
+  const move=items.reduce((a,b)=>a+(Number(b.nextTravel)||0),0),cost=items.reduce((a,b)=>a+(Number(b.cost)||0),0),stay=items.reduce((a,b)=>a+(Number(b.duration)||0),0),evening=items.find(s=>s.time>='17:00'&&['food','drink'].includes(s.category)),last=items.at(-1);
+  const summary=[['오늘의 핵심 일정',day.theme],['총 예상 이동',`${move}분`],['1인 예상 비용',`${won(cost)} · ${yen(cost)}`],['총 체류시간',`${stay}분`],['저녁 첫 일정',evening?evening.place:'미정'],['마지막 일정',last?`${last.end||last.time} · ${last.place}`:'미정']];
   document.querySelector('#daySummary').innerHTML=summary.map(s=>`<div class="summary-cell"><small>${s[0]}</small><b>${s[1]}</b></div>`).join('');
   document.querySelector('#scheduleBoard').innerHTML=items.map(s=>`<article class="schedule-row" data-id="${s.id}" data-edit-schedule="${s.id}"><div class="schedule-time"><b>${s.time}</b><small>${s.end}</small></div><i class="category-bar ${s.category}"></i><div class="schedule-main"><b>${esc(s.place)}</b><small>${esc(s.description)}</small></div><div class="schedule-meta"><small>${CAT[s.category]?.label}</small><b>${s.transport} · ${s.duration}분</b></div><span class="tag ${s.reservation==='예약 완료'?'done':s.reservation.includes('필요')?'need':''}">${s.reservation}</span><button class="icon-button" type="button" aria-label="${esc(s.place)} 일정 수정">›</button></article>`).join('')||'<p class="empty-state">일정이 없어요. 새 일정을 추가해보세요.</p>';
+}
+function renderMobileNow(){
+  const now=new Date(),today=dateKey(now),clock=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,items=state.schedules.filter(item=>item.date===today).sort((a,b)=>a.time.localeCompare(b.time));
+  const currentIndex=items.findIndex(item=>item.time<=clock&&(item.end||item.time)>=clock),nextIndex=items.findIndex(item=>item.time>clock),current=currentIndex>=0?items[currentIndex]:nextIndex>=0?items[nextIndex]:items.at(-1),next=currentIndex>=0?items[currentIndex+1]:nextIndex>=0?items[nextIndex+1]:null;
+  document.querySelector('#mobileCurrentPlace').textContent=current?`${current.time} ${current.place}`:'오늘 일정 없음';document.querySelector('#mobileNextPlace').textContent=next?`${next.time} ${next.place}`:'다음 일정 없음';
 }
 
 function renderFoliage(){
@@ -426,13 +432,8 @@ function renderFood(){
   document.querySelector('#foodDatabase').innerHTML=`<div class="db-row header"><span>가게 / 대표 메뉴</span><span>지역</span><span>가격대</span><span>방문일</span><span>우선순위</span><span>별점</span><span>투표</span><span></span></div>`+list.map(p=>`<div class="db-row"><div class="db-name"><b>${esc(p.name)}</b><small>${esc(p.menu)} · ${esc(p.hours)}</small></div><span>${esc(p.area)}</span><span>${esc(p.price)}</span><span>${esc(p.visit)}</span><label class="food-priority-control"><i class="priority-dot ${p.priority}"></i><select data-food-priority="${p.id}" aria-label="${esc(p.name)} 우선순위"><option value="must" ${p.priority==='must'?'selected':''}>무조건 가기</option><option value="maybe" ${p.priority==='maybe'?'selected':''}>시간 되면</option><option value="candidate" ${p.priority==='candidate'?'selected':''}>후보</option></select></label><span class="stars">${'★'.repeat(p.stars)}${'☆'.repeat(5-p.stars)}</span><button class="vote-button ${p.voted?'voted':''}" data-vote="food:${p.id}">👍 ${p.votes}</button><button class="icon-button" data-edit-place="food:${p.id}">›</button></div>`).join('');
 }
 function renderDrinkRoutes(){
-  const nightDate=index=>{const day=TRIP_DATES[index]||TRIP_DATES.at(-1);if(!day)return '날짜 미정';return `${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(day.date)).toUpperCase()} · ${day.short}`};
-  const routes=[
-    {night:nightDate(0),name:'도착의 밤',plan:'PLAN A',stops:[['18:30','징기스칸 후보'],['20:20','사케 바'],['22:15','위스키 바'],['23:40','숙소']]},
-    {night:nightDate(1),name:'스스키노 딥다이브',plan:'PLAN A',stops:[['18:30','해산물 저녁'],['20:30','이자카야'],['22:15','칵테일 바'],['00:00','숙소']]},
-    {night:nightDate(2),name:'온천 뒤 한 잔',plan:'PLAN B',stops:[['19:00','야키토리'],['21:00','크래프트 맥주'],['22:45','라멘/숙소']]}
-  ];
-  document.querySelector('#drinkRoutes').innerHTML=routes.slice(0,Math.min(3,TRIP_DATES.length)).map(r=>`<article class="route-card"><div class="route-card-head"><div><small>${r.night}</small><b> ${r.name}</b></div><span>${r.plan}</span></div><div class="night-stops">${r.stops.map((s,i)=>`<div class="night-stop"><small>${i?`${i}차`:'저녁'} · ${s[0]}</small><b>${s[1]}</b><em>${i<r.stops.length-1?'도보 5~15분':'복귀'}</em></div>`).join('')}</div></article>`).join('');
+  const routes=TRIP_DATES.map(day=>({day,stops:state.schedules.filter(item=>item.date===day.date&&item.time>='17:00'&&['food','drink','hotel'].includes(item.category)).sort((a,b)=>a.time.localeCompare(b.time))})).filter(route=>route.stops.length).slice(0,3);
+  document.querySelector('#drinkRoutes').innerHTML=routes.length?routes.map(route=>`<article class="route-card"><div class="route-card-head"><div><small>${route.day.weekday} · ${route.day.short}</small><b> ${route.day.theme}</b></div><span>${route.stops.length}곳</span></div><div class="night-stops">${route.stops.map((item,i)=>`<div class="night-stop"><small>${i?`${i}차`:'저녁'} · ${item.time}</small><b>${esc(item.place)}</b><em>${i<route.stops.length-1?`${item.nextTravel||0}분 이동`:`${item.end||item.time} 종료`}</em></div>`).join('')}</div></article>`).join(''):'<p class="empty-state">저녁 시간의 식사·술 일정을 추가하면 밤 동선이 표시됩니다.</p>';
 }
 function renderDrinks(){
   renderDrinkRoutes(); const cats=['전체',...new Set(state.drinks.map(d=>d.category))];
@@ -577,7 +578,7 @@ function renderTripPeriod(){
   const firstNight=document.querySelector('#firstNightDate'),first=TRIP_DATES[0];if(firstNight&&first)firstNight.textContent=`${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(first.date)).toUpperCase()} · ${first.short}`;
   document.title=`SAPPORO / ${period}`;
 }
-function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=activeMember;document.querySelector('#memberAvatar').textContent=activeMember[0]||'이';document.querySelector('#currentMemberRole').textContent=activeMember===MASTER?'마스터 · 이 기기':'편집자 · 이 기기';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
+function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderMobileNow();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=activeMember;document.querySelector('#memberAvatar').textContent=activeMember[0]||'이';document.querySelector('#currentMemberRole').textContent=activeMember===MASTER?'마스터 · 이 기기':'편집자 · 이 기기';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
 
 const scheduleFields=[['time','시간','time'],['end','종료','time'],['place','장소','text','wide'],['category','카테고리','select'],['description','한 줄 설명','text','wide'],['duration','예상 체류시간(분)','number'],['nextTravel','다음 장소 이동시간(분)','number'],['transport','이동방법','text'],['cost','예상 비용(JPY)','number'],['reservation','예약 여부','select'],['reservationTime','예약 시간','time'],['map','Google Maps 링크','url','wide'],['official','공식/예약 링크','url','wide'],['memo','메모','textarea','wide']];
 function parseSmartDate(value){

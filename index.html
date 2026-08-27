@@ -91,9 +91,9 @@
 
       <div class="home-grid">
         <section class="panel tonight-panel">
-          <div class="panel-head"><div><p class="eyebrow">TONIGHT'S ROUTE</p><h3>첫날, 스스키노에 착륙</h3></div><button class="text-button" data-page-link="drinks">전체 보기 →</button></div>
+          <div class="panel-head"><div><p class="eyebrow">FIRST NIGHT ROUTE</p><h3 id="homeNightTitle">첫날 저녁 일정</h3></div><button class="text-button" data-page-link="drinks">전체 보기 →</button></div>
           <div class="route-line" id="nightRoute"></div>
-          <div class="route-plan"><span>PLAN B</span><p><b>대기 길면:</b> 스스키노 산책 → 후보 이자카야 → 로컬 바</p></div>
+          <div class="route-plan" id="homeNightSummary"><span>일정</span><p>저녁 일정을 준비하고 있어요.</p></div>
         </section>
         <section class="panel action-panel">
           <div class="panel-head"><div><p class="eyebrow">BEFORE WE GO</p><h3>출발 전 할 일</h3></div><b id="checkProgress">0/0</b></div>
@@ -173,8 +173,8 @@
   </nav>
 
   <div class="mobile-now" id="mobileNow">
-    <div><small>지금 갈 곳</small><b>삿포로역 → 숙소</b></div>
-    <div><small>다음 일정</small><b>18:30 저녁</b></div>
+    <div><small>지금 갈 곳</small><b id="mobileCurrentPlace">일정 확인 중</b></div>
+    <div><small>다음 일정</small><b id="mobileNextPlace">일정 확인 중</b></div>
     <button data-page-link="map"><span>⌖</span>지도</button>
     <button data-page-link="drinks"><span>🍶</span>오늘 밤</button>
   </div>
@@ -190,6 +190,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=25"></script>
+  <script src="script.js?v=26"></script>
 </body>
 </html>
