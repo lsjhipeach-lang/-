@@ -95,3 +95,17 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
   .expense-row .amount{min-width:78px;text-align:right;white-space:nowrap}
   .expense-row .amount b{font-size:13px}.expense-row .amount small{font-size:10px}
 }
+/* App connection guide */
+.feature-guide-modal{width:min(760px,calc(100vw - 28px));max-height:min(820px,calc(100dvh - 28px));padding:0;overflow:auto}
+.feature-guide-shell{padding:28px}
+.feature-guide-modal .modal-head p{margin:6px 0 0;color:var(--muted);font-size:13px}
+.feature-guide-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:22px 0 14px}
+.feature-guide-grid article{display:flex;gap:12px;padding:16px;border:1px solid var(--line);border-radius:16px;background:var(--paper,#fff)}
+.feature-guide-grid article:last-child{grid-column:1/-1}
+.feature-guide-grid article>span{display:grid;place-items:center;flex:0 0 34px;height:34px;border-radius:10px;background:#f2e9dc;color:var(--accent);font-size:11px;font-weight:700}
+.feature-guide-grid b{display:block;font-size:14px;margin:1px 0 5px}
+.feature-guide-grid p{margin:0;color:var(--muted);font-size:12px;line-height:1.55}
+.feature-guide-note{display:flex;gap:10px;padding:13px 15px;border-radius:13px;background:#eef4f0;color:#315346;font-size:12px;line-height:1.5}
+.feature-guide-note b{white-space:nowrap}
+.feature-guide-actions{display:flex;justify-content:flex-end;gap:8px;margin-top:20px}
+@media(max-width:620px){.feature-guide-shell{padding:20px}.feature-guide-grid{grid-template-columns:1fr}.feature-guide-grid article:last-child{grid-column:auto}.feature-guide-actions{flex-direction:column-reverse}.feature-guide-actions button{width:100%}.feature-guide-note{display:block}.feature-guide-note b{display:block;margin-bottom:4px}}

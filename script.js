@@ -703,10 +703,19 @@ let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
 if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=11').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=12').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
 syncResponsiveUI();
 if(PREVIEW_MODE){document.body.dataset.previewMode='true';updateAuthUI()}
 initializeSupabase();
+
+const FEATURE_GUIDE_HIDE_KEY='sapporo-feature-guide-hidden-date';
+const localDateKey=()=>{const now=new Date();return `${now.getFullYear()}-${String(now.getMonth()+1).padStart(2,'0')}-${String(now.getDate()).padStart(2,'0')}`};
+const featureGuideDialog=document.querySelector('#featureGuideDialog');
+const closeFeatureGuide=()=>{if(featureGuideDialog.open)featureGuideDialog.close()};
+document.querySelector('#closeFeatureGuide').addEventListener('click',closeFeatureGuide);
+document.querySelector('#confirmFeatureGuide').addEventListener('click',closeFeatureGuide);
+document.querySelector('#hideFeatureGuideToday').addEventListener('click',()=>{localStorage.setItem(FEATURE_GUIDE_HIDE_KEY,localDateKey());closeFeatureGuide();toast('오늘은 기능 안내를 표시하지 않아요.')});
+window.addEventListener('load',()=>{if(localStorage.getItem(FEATURE_GUIDE_HIDE_KEY)!==localDateKey()&&!featureGuideDialog.open)setTimeout(()=>featureGuideDialog.showModal(),180)});
