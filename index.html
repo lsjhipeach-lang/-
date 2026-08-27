@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="style.css?v=18">
+  <link rel="stylesheet" href="style.css?v=19">
   <link rel="stylesheet" href="pwa.css?v=9">
 </head>
 <body>
@@ -139,8 +139,9 @@
 
     <section class="page" id="page-map">
       <div class="section-heading page-intro"><div><p class="eyebrow">ALL PLACES</p><h1>통합 지도</h1><p>장소를 누르면 상세 정보와 지도 링크를 바로 열 수 있어요.</p></div></div>
-      <div class="map-toolbar"><div class="chips" id="mapFilters"></div><button class="secondary" id="routeMode">⇄ 두 장소 이동시간</button></div>
+      <div class="map-toolbar"><div class="chips" id="mapFilters"></div></div>
       <div class="main-map-layout"><div id="mainMap"></div><aside id="mapDetail" class="map-detail"><p class="empty-state">지도에서 핀을 선택하세요.</p></aside></div>
+      <section class="map-unlocated" id="mapUnlocated"></section>
     </section>
 
     <section class="page" id="page-budget">
@@ -189,6 +190,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=22"></script>
+  <script src="script.js?v=23"></script>
 </body>
 </html>
