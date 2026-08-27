@@ -34,6 +34,15 @@ const supabaseClient = PREVIEW_MODE ? null : window.supabase?.createClient(SUPAB
 let signedInUser = null;
 let remoteChannel = null;
 let deferredInstallPrompt = null;
+let otpSendPending = false;
+let otpVerifyPending = false;
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const DEVELOPMENT_HOSTS = new Set(['localhost','127.0.0.1','[::1]']);
+const isDevelopment = location.protocol === 'file:' || DEVELOPMENT_HOSTS.has(location.hostname);
+function logSupabaseAuthError(context,error){
+  if(!isDevelopment)return;
+  console.error(context,{message:error?.message,status:error?.status,code:error?.code});
+}
 const CAT = {
   tour: { label: '🍁 단풍/관광', color: '#799858' }, food: { label: '🍣 식사', color: '#dc8738' },
   drink: { label: '🍶 술', color: '#8d4451' }, cafe: { label: '☕ 카페', color: '#ad7654' },
@@ -542,22 +551,49 @@ document.querySelector('#authForm').addEventListener('submit',async e=>{
   e.preventDefault();
   if(PREVIEW_MODE)return toast('미리보기에서는 로그인 이메일을 전송하지 않아요.');
   const email=document.querySelector('#authEmail').value.trim();
-  const button=document.querySelector('#sendOtpButton');button.disabled=true;button.textContent='전송 중…';
-  const {error}=await supabaseClient.auth.signInWithOtp({email});
-  button.disabled=false;
-  if(error){button.textContent=document.querySelector('#otpStep').hidden?'인증번호 받기':'인증번호 다시 받기';toast(`인증번호 전송 실패: ${error.message}`);return}
-  setOtpStep(true);toast('이메일로 6자리 인증번호를 보냈어요.');
+  if(!EMAIL_PATTERN.test(email))return toast('올바른 이메일 주소를 입력해 주세요.');
+  if(!supabaseClient)return toast('로그인 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  if(otpSendPending)return;
+  const button=document.querySelector('#sendOtpButton');
+  otpSendPending=true;button.disabled=true;button.textContent='전송 중…';
+  try{
+    const {error}=await supabaseClient.auth.signInWithOtp({email});
+    if(error){
+      logSupabaseAuthError('Supabase OTP send error',error);
+      toast('인증번호를 전송하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+      return;
+    }
+    setOtpStep(true);toast('이메일로 인증번호를 보냈어요.');
+  }catch(error){
+    logSupabaseAuthError('Supabase OTP send exception',error);
+    toast('인증번호를 전송하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }finally{
+    otpSendPending=false;button.disabled=false;
+    button.textContent=document.querySelector('#otpStep').hidden?'인증번호 받기':'인증번호 다시 받기';
+  }
 });
-document.querySelector('#authOtp').addEventListener('input',event=>{event.target.value=event.target.value.replace(/\D/g,'').slice(0,6)});
+document.querySelector('#authOtp').addEventListener('input',event=>{event.target.value=event.target.value.replace(/\D/g,'').slice(0,10)});
 document.querySelector('#verifyOtpButton').addEventListener('click',async()=>{
   if(PREVIEW_MODE)return toast('미리보기에서는 인증번호를 확인하지 않아요.');
   const email=document.querySelector('#authEmail').value.trim(),token=document.querySelector('#authOtp').value.trim(),button=document.querySelector('#verifyOtpButton');
-  if(!email||!/^[0-9]{6}$/.test(token))return toast('이메일과 6자리 인증번호를 확인해 주세요.');
-  button.disabled=true;button.textContent='확인 중…';
-  const {data,error}=await supabaseClient.auth.verifyOtp({email,token,type:'email'});
-  button.disabled=false;button.textContent='인증번호 확인';
-  if(error)return toast(`인증번호 확인 실패: ${error.message}`);
-  signedInUser=data.user;updateAuthUI();document.querySelector('#authDialog').close();setOtpStep(false);document.querySelector('#authOtp').value='';toast('서버 로그인과 데이터 연결이 완료됐어요.');
+  if(!EMAIL_PATTERN.test(email)||!/^[0-9]{6,10}$/.test(token))return toast('이메일과 6~10자리 인증번호를 확인해 주세요.');
+  if(!supabaseClient)return toast('로그인 서비스를 불러오지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  if(otpVerifyPending)return;
+  otpVerifyPending=true;button.disabled=true;button.textContent='확인 중…';
+  try{
+    const {data,error}=await supabaseClient.auth.verifyOtp({email,token,type:'email'});
+    if(error){
+      logSupabaseAuthError('Supabase OTP verify error',error);
+      toast('인증번호를 확인하지 못했습니다. 번호를 확인하고 다시 시도해 주세요.');
+      return;
+    }
+    signedInUser=data.user;updateAuthUI();document.querySelector('#authDialog').close();setOtpStep(false);document.querySelector('#authOtp').value='';toast('서버 로그인과 데이터 연결이 완료됐어요.');
+  }catch(error){
+    logSupabaseAuthError('Supabase OTP verify exception',error);
+    toast('인증번호를 확인하지 못했습니다. 잠시 후 다시 시도해 주세요.');
+  }finally{
+    otpVerifyPending=false;button.disabled=false;button.textContent='인증번호 확인';
+  }
 });
 document.querySelector('#signOutButton').addEventListener('click',async()=>{
   if(PREVIEW_MODE)return;
