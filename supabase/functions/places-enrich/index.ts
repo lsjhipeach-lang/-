@@ -62,8 +62,10 @@ Deno.serve(async (req) => {
     await supabaseAdmin.from('places_cache').upsert({ query_key: place.queryKey, data: result, updated_at: new Date().toISOString() })
   }
 
+  const period = new Date().toISOString().slice(0, 7)
+  const { data: usageRow } = await supabaseAdmin.from('places_api_usage').select('request_count').eq('period', period).maybeSingle()
   return Response.json({
     results: requests.map((place: { queryKey: string }) => cache.get(place.queryKey) || null),
-    usage: { requested: requests.length, cached: requests.length - misses.length, apiCalls: misses.length, monthlyLimit: MONTHLY_REQUEST_LIMIT },
+    usage: { requested: requests.length, cached: requests.length - misses.length, apiCalls: misses.length, monthlyUsed: usageRow?.request_count || 0, monthlyLimit: MONTHLY_REQUEST_LIMIT },
   }, { headers: { ...corsHeaders, 'Content-Type': 'application/json' } })
 })

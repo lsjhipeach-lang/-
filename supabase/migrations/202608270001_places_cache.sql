@@ -35,3 +35,4 @@ end;
 $$;
 
 revoke all on function public.consume_places_quota(text, integer, integer) from public, anon, authenticated;
+grant execute on function public.consume_places_quota(text, integer, integer) to service_role;
