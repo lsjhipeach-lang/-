@@ -317,8 +317,7 @@ function renderStats(){
   const todo=state.checklist.filter(c=>!c.done).length;
   const today=new Date();today.setHours(0,0,0,0);const start=parseDate(state.tripStart),end=parseDate(state.tripEnd);
   const days=Math.ceil((start-today)/86400000), duration=TRIP_DATES.length, period=duration===1?'1일':`${duration-1}박 ${duration}일`;
-  const rate=Number(state.exchangeRate)||initialData.exchangeRate;
-  const stats=[['D-DAY',days>0?`D-${days}`:today<=end?'여행 중':'여행 완료'],['여행 기간',period],['확정 일정',`${confirmed}<em>개</em>`],['예약 필요',`${need}<em>곳</em>`],['예약 완료',`${done}<em>곳</em>`],['예상 총 여행비',`${yen(planned)}<em>/ ${MEMBERS.length}인</em>`],['현재 경비',`${yen(spent)}<em>₩${Math.round(spent*rate).toLocaleString()}</em>`],['출발 전 할 일',`${todo}<em>개</em>`]];
+  const stats=[['D-DAY',days>0?`D-${days}`:today<=end?'여행 중':'여행 완료'],['여행 기간',period],['확정 일정',`${confirmed}<em>개</em>`],['예약 필요',`${need}<em>곳</em>`],['예약 완료',`${done}<em>곳</em>`],['예상 총 여행비',`${won(planned)}<em>${yen(planned)} · ${MEMBERS.length}인</em>`],['현재 경비',`${won(spent)}<em>${yen(spent)}</em>`],['출발 전 할 일',`${todo}<em>개</em>`]];
   document.querySelector('#stats').innerHTML=stats.map((s,i)=>`<div class="stat-card ${i===0?'accent':''}"><small>${s[0]}</small><b>${s[1]}</b></div>`).join('');
 }
 function renderTimeline(){
@@ -340,7 +339,7 @@ function renderSchedule(){
   renderDayTabs(); const items=dayData(); const day=TRIP_DATES.find(d=>d.date===activeDay);
   const move=items.reduce((a,b)=>a+(Number(b.nextTravel)||0),0), cost=items.reduce((a,b)=>a+(Number(b.cost)||0),0);
   const drink=items.find(s=>s.category==='drink')?.place||'미정';
-  const summary=[['오늘의 핵심 일정',day.theme],['총 예상 이동',`${move}분`],['1인 예상 비용',yen(cost)],['예상 도보량',move>120?'12,000보+':'8,000~10,000보'],['저녁 음주 지역',drink.includes('오타루')?'오타루':'스스키노'],['숙소 복귀','23:40 전후']];
+  const summary=[['오늘의 핵심 일정',day.theme],['총 예상 이동',`${move}분`],['1인 예상 비용',`${won(cost)} · ${yen(cost)}`],['예상 도보량',move>120?'12,000보+':'8,000~10,000보'],['저녁 음주 지역',drink.includes('오타루')?'오타루':'스스키노'],['숙소 복귀','23:40 전후']];
   document.querySelector('#daySummary').innerHTML=summary.map(s=>`<div class="summary-cell"><small>${s[0]}</small><b>${s[1]}</b></div>`).join('');
   document.querySelector('#scheduleBoard').innerHTML=items.map(s=>`<article class="schedule-row" draggable="true" data-id="${s.id}" data-edit-schedule="${s.id}"><span class="drag-handle">⠿</span><div class="schedule-time"><b>${s.time}</b><small>${s.end}</small></div><i class="category-bar ${s.category}"></i><div class="schedule-main"><b>${esc(s.place)}</b><small>${esc(s.description)}</small></div><div class="schedule-meta"><small>${CAT[s.category]?.label}</small><b>${s.transport} · ${s.duration}분</b></div><span class="tag ${s.reservation==='예약 완료'?'done':s.reservation.includes('필요')?'need':''}">${s.reservation}</span><button class="icon-button">›</button></article>`).join('')||'<p class="empty-state">일정이 없어요. 새 일정을 추가해보세요.</p>';
   bindDrag();
@@ -391,14 +390,14 @@ function renderBudget(){
   const common=state.expenses.filter(e=>e.scope!=='personal'),personal=state.expenses.filter(e=>e.scope==='personal');
   const commonTotal=common.reduce((a,e)=>a+expenseJPY(e),0),personalTotal=personal.reduce((a,e)=>a+expenseJPY(e),0),total=commonTotal+personalTotal;
   const average=total/MEMBERS.length,commonShare=commonTotal/MEMBERS.length;
-  const stats=[['총 경비',yen(total),`${won(total)} · 공동+개인`],['공동 경비',yen(commonTotal),`${won(commonTotal)} · 1인 ${yen(commonShare)}`],['개인 경비',yen(personalTotal),`${won(personalTotal)} · 개인별 아래 표시`],['1인당 평균',yen(average),`${won(average)} · 전체 경비 기준`]];
+  const stats=[['총 경비',won(total),`${yen(total)} · 공동+개인`],['공동 경비',won(commonTotal),`${yen(commonTotal)} · 1인 ${won(commonShare)} (${yen(commonShare)})`],['개인 경비',won(personalTotal),`${yen(personalTotal)} · 개인별 아래 표시`],['1인당 평균',won(average),`${yen(average)} · 전체 경비 기준`]];
   document.querySelector('#budgetStats').innerHTML=stats.map(s=>`<div class="budget-stat"><small>${s[0]}</small><b>${s[1]}</b><em>${s[2]}</em></div>`).join('');
   const filters=[['전체','all'],['공동','common'],['개인','personal'],...new Set(state.expenses.map(e=>e.category))].map(item=>Array.isArray(item)?item:[item,item]);
   document.querySelector('#expenseFilters').innerHTML=filters.map(([label,value],i)=>`<button class="${i===0?'active':''}" data-expense-filter="${value}">${label}</button>`).join('');
-  document.querySelector('#expenseList').innerHTML=state.expenses.map(e=>{const amount=expenseJPY(e);return `<div class="expense-row" data-edit-expense="${e.id}" data-expense-scope="${e.scope}" data-expense-category="${e.category}"><small>${e.date.slice(5)}</small><div><b>${esc(e.description)}</b><small>${e.category} · 결제 ${e.payer}${e.scope==='personal'?` · 사용 ${e.owner}`:' · 공동'}</small></div><div class="amount"><b>${yen(amount)}</b><small>${won(amount)}${e.inputCurrency==='KRW'?' · 원화 입력':''}</small></div><span class="expense-scope ${e.scope}">${e.scope==='personal'?'개인':'공동'}</span><span class="tag ${e.settled?'done':'need'}">${e.settled?'정산 완료':'미정산'}</span></div>`}).join('')||'<p class="empty-state">등록된 지출이 없습니다.</p>';
+  document.querySelector('#expenseList').innerHTML=state.expenses.map(e=>{const amount=expenseJPY(e);return `<div class="expense-row" data-edit-expense="${e.id}" data-expense-scope="${e.scope}" data-expense-category="${e.category}"><small>${e.date.slice(5)}</small><div><b>${esc(e.description)}</b><small>${e.category} · 결제 ${e.payer}${e.scope==='personal'?` · 사용 ${e.owner}`:' · 공동'}</small></div><div class="amount"><b>${won(amount)}</b><small>${yen(amount)}${e.inputCurrency==='KRW'?' · 원화 입력':''}</small></div><span class="expense-scope ${e.scope}">${e.scope==='personal'?'개인':'공동'}</span><span class="tag ${e.settled?'done':'need'}">${e.settled?'정산 완료':'미정산'}</span></div>`}).join('')||'<p class="empty-state">등록된 지출이 없습니다.</p>';
   const paid=Object.fromEntries(MEMBERS.map(m=>[m,state.expenses.filter(e=>e.payer===m).reduce((a,e)=>a+expenseJPY(e),0)]));
   const personalByMember=Object.fromEntries(MEMBERS.map(m=>[m,personal.filter(e=>e.owner===m).reduce((a,e)=>a+expenseJPY(e),0)]));
-  document.querySelector('#settlement').innerHTML=MEMBERS.map((m,i)=>{const burden=commonShare+personalByMember[m],diff=paid[m]-burden;return `<div class="settle-person expanded"><span class="avatar" style="background:${['#b94d2f','#b38a35'][i]}">${m[0]}</span><div><b>${m}${m===MASTER?' <em class="master-badge">MASTER</em>':''}</b><small>공동 부담 ${yen(commonShare)} + 개인 ${yen(personalByMember[m])}</small><em class="member-total">총 부담 ${yen(burden)} · ${won(burden)}</em></div><div class="settle-result"><strong class="${diff>=0?'receive':'send'}">${diff>=0?'받을 돈':'보낼 돈'} ${yen(Math.abs(diff))}</strong><small>${won(Math.abs(diff))} · 총 결제 ${yen(paid[m])}</small></div></div>`}).join('')+`<div class="settle-transfer"><b>계산 기준</b><p>개인별 총 부담은 공동 경비 1/2과 본인 개인 경비의 합입니다. 실제 결제액과 비교해 받을·보낼 돈을 계산합니다.</p></div>`;
+  document.querySelector('#settlement').innerHTML=MEMBERS.map((m,i)=>{const burden=commonShare+personalByMember[m],diff=paid[m]-burden;return `<div class="settle-person expanded"><span class="avatar" style="background:${['#b94d2f','#b38a35'][i]}">${m[0]}</span><div><b>${m}${m===MASTER?' <em class="master-badge">MASTER</em>':''}</b><small>공동 부담 ${won(commonShare)} + 개인 ${won(personalByMember[m])}</small><em class="member-total">총 부담 ${won(burden)} · ${yen(burden)}</em></div><div class="settle-result"><strong class="${diff>=0?'receive':'send'}">${diff>=0?'받을 돈':'보낼 돈'} ${won(Math.abs(diff))}</strong><small>${yen(Math.abs(diff))} · 총 결제 ${won(paid[m])}</small></div></div>`}).join('')+`<div class="settle-transfer"><b>계산 기준</b><p>개인별 총 부담은 공동 경비 1/2과 본인 개인 경비의 합입니다. 실제 결제액과 비교해 받을·보낼 돈을 계산합니다.</p></div>`;
 }
 function renderBookings(){
   const statuses=['조사 필요','예약 예정','예약 요청','예약 완료','취소'];
@@ -474,7 +473,7 @@ function openExpenseEditor(id){
 function updateExpenseForm(){
   if(editing?.type!=='expense')return;const form=document.querySelector('#editorForm'),scope=form.elements.scope?.value,currency=form.elements.inputCurrency?.value,raw=Number(form.elements.inputAmount?.value)||0,rate=Number(state.exchangeRate)||initialData.exchangeRate;
   document.querySelector('#expenseOwnerField').hidden=scope!=='personal';const jpy=currency==='KRW'?raw/rate:raw,krw=currency==='KRW'?raw:raw*rate;
-  document.querySelector('#expenseConversionPreview').innerHTML=`<small>환율 ¥1 = ₩${rate}</small><b>${yen(jpy)} <span>≈</span> ₩${Math.round(krw).toLocaleString('ko-KR')}</b>`;
+  document.querySelector('#expenseConversionPreview').innerHTML=`<small>환율 ¥1 = ₩${rate}</small><b>₩${Math.round(krw).toLocaleString('ko-KR')} <span>≈</span> ${yen(jpy)}</b>`;
 }
 function openBookingEditor(id){
   const item=id?state.reservations.find(r=>r.id===id):{id:uid('r'),scheduleId:'',place:'',date:activeDay,time:'18:30',people:MEMBERS.length,booker:state.currentMember,method:'확인 필요',number:'',link:'',deadline:'확인 필요',note:'',status:'조사 필요'};
