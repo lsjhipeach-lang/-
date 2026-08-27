@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="style.css?v=15">
+  <link rel="stylesheet" href="style.css?v=16">
   <link rel="stylesheet" href="pwa.css?v=9">
 </head>
 <body>
@@ -75,9 +75,9 @@
           <b>여행 기간</b>
           <small id="tripPeriodSummary">4박 5일</small>
         </div>
-        <label><span>시작일</span><input type="date" id="tripStart" name="tripStart" required></label>
+        <label><span>시작일</span><input type="text" inputmode="numeric" data-smart-date id="tripStart" name="tripStart" placeholder="2026-10-22 또는 1022" required></label>
         <i aria-hidden="true">→</i>
-        <label><span>종료일</span><input type="date" id="tripEnd" name="tripEnd" required></label>
+        <label><span>종료일</span><input type="text" inputmode="numeric" data-smart-date id="tripEnd" name="tripEnd" placeholder="2026-10-26 또는 1026" required></label>
         <button class="primary" type="submit">기간 적용</button>
       </form>
 
@@ -189,6 +189,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=17"></script>
+  <script src="script.js?v=18"></script>
 </body>
 </html>
