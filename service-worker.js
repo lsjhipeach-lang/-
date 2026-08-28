@@ -1,5 +1,5 @@
-const CACHE_NAME='sapporo-shell-v31-maps-import-fix';
-const APP_SHELL=['./','./index.html','./manual.html','./sapporo-trip-user-manual.pdf','./style.css?v=20','./pwa.css?v=9','./script.js?v=30','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
+const CACHE_NAME='sapporo-shell-v32-map-place-manager';
+const APP_SHELL=['./','./index.html','./manual.html','./sapporo-trip-user-manual.pdf','./style.css?v=21','./pwa.css?v=9','./script.js?v=31','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
 
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
