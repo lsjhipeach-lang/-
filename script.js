@@ -363,6 +363,7 @@ function navigate(page){
   document.querySelectorAll('[data-page]').forEach(b=>b.classList.toggle('active',b.dataset.page===page));
   const names={home:['TRIP OVERVIEW','여행 대시보드'],schedule:['DAY BY DAY','날짜별 일정'],foliage:['AUTUMN WATCH','단풍 스팟'],food:['FOOD SHORTLIST','맛집 DB'],drinks:['NIGHT ROUTES','술 대시보드'],map:['ALL PLACES','통합 지도'],budget:['TRIP WALLET','경비'],booking:['RESERVATION BOARD','예약 관리'],checklist:['READY TO GO','출발 전 체크리스트']};
   document.querySelector('#pageEyebrow').textContent=names[page][0]; document.querySelector('#pageTitle').textContent=names[page][1];
+  updateQuickAdd(page);
   setMobileMenuOpen(false); window.scrollTo({top:0,behavior:'smooth'});
   document.querySelector('#mobileNow').classList.toggle('visible',page==='home'&&matchMedia('(max-width: 767px)').matches&&inTripRange(dateKey(new Date())));
   if(page==='map') setTimeout(()=>{initMainMap();mainMap?.invalidateSize()},80);
@@ -375,6 +376,22 @@ function syncResponsiveUI(){
   setMobileMenuOpen(mobile&&sidebar.classList.contains('open'));
   document.querySelector('#mobileNow').classList.toggle('visible',mobile&&document.querySelector('#page-home').classList.contains('active')&&inTripRange(dateKey(new Date())));
   requestAnimationFrame(()=>{mainMap?.invalidateSize();susukinoMap?.invalidateSize()});
+}
+
+const QUICK_ADD_BY_PAGE={
+  home:{action:'schedule',label:'일정 추가'},
+  schedule:{action:'schedule',label:'일정 추가'},
+  foliage:{action:'foliage',label:'단풍 스팟 추가'},
+  food:{action:'food',label:'맛집 후보 추가'},
+  drinks:{action:'drink',label:'술집 후보 추가'},
+  map:{action:'maps-import',label:'장소 가져오기'},
+  budget:{action:'expense',label:'지출 추가'},
+  booking:{action:'booking',label:'예약 추가'},
+  checklist:{action:'checklist',label:'할 일 추가'}
+};
+function updateQuickAdd(page){
+  const button=document.querySelector('#quickAdd'),config=QUICK_ADD_BY_PAGE[page]||QUICK_ADD_BY_PAGE.home;
+  button.dataset.quickAction=config.action;button.textContent=`＋ ${config.label}`;button.setAttribute('aria-label',config.label);
 }
 
 function renderStats(){
@@ -424,7 +441,7 @@ function renderFoliage(){
   document.querySelector('#foliageFilters').innerHTML=areas.map(a=>`<button class="${a===activeFoliageArea?'active':''}" data-foliage-area="${a}">${a}</button>`).join('');
   const list=state.foliage.filter(f=>(activeFoliageArea==='전체'||f.area===activeFoliageArea)&&(activeFoliageStatus==='전체 상태'||f.status===activeFoliageStatus));
   const statuses=['확인 필요','아직 이름','물들기 시작','절정 근접','절정','낙엽 진행'];
-  document.querySelector('#foliageGrid').innerHTML=list.map((f,i)=>`<article class="foliage-card"><div class="foliage-photo" style="filter:hue-rotate(${i*4}deg)"><span class="certainty">예상 정보</span><span class="foliage-score">${f.fit.split(' · ')[0]}</span></div><div class="foliage-body"><h3>${esc(f.name)}</h3><p>${esc(f.area)} · ${esc(f.travel)}</p><div class="detail-pairs"><div><small>평년 단풍 시기</small><b>${esc(f.season)}</b></div><div><small>2026 현장 상태</small><select class="inline-status" data-foliage-status="${f.id}">${statuses.map(status=>`<option ${status===f.status?'selected':''}>${status}</option>`).join('')}</select></div><div><small>추천 시간 · 체류</small><b>${esc(f.visit)} · ${esc(f.duration)}</b></div><div><small>이동 · 입장료</small><b>${esc(f.transport)} · ${esc(f.fee)}</b></div><div><small>날씨 영향</small><b>${esc(f.weather)}</b></div><div><small>비고</small><b>${esc(f.note)}</b></div></div><div class="foliage-actions"><a href="${f.map}" target="_blank" rel="noopener">지도 열기 ↗</a><a href="${f.official}" target="_blank" rel="noopener">공식 정보 ↗</a><button data-add-foliage="${f.id}">일정에 추가</button></div></div></article>`).join('')||'<p class="empty-state">선택한 상태의 장소가 없습니다.</p>';
+  document.querySelector('#foliageGrid').innerHTML=list.map((f,i)=>`<article class="foliage-card"><div class="foliage-photo" style="filter:hue-rotate(${i*4}deg)"><span class="certainty">예상 정보</span><span class="foliage-score">${esc((f.fit||'확인 필요').split(' · ')[0])}</span></div><div class="foliage-body"><h3>${esc(f.name)}</h3><p>${esc(f.area)} · ${esc(f.travel)}</p><div class="detail-pairs"><div><small>평년 단풍 시기</small><b>${esc(f.season)}</b></div><div><small>2026 현장 상태</small><select class="inline-status" data-foliage-status="${f.id}">${statuses.map(status=>`<option ${status===f.status?'selected':''}>${status}</option>`).join('')}</select></div><div><small>추천 시간 · 체류</small><b>${esc(f.visit)} · ${esc(f.duration)}</b></div><div><small>이동 · 입장료</small><b>${esc(f.transport)} · ${esc(f.fee)}</b></div><div><small>날씨 영향</small><b>${esc(f.weather)}</b></div><div><small>비고</small><b>${esc(f.note)}</b></div></div><div class="foliage-actions"><a href="${f.map}" target="_blank" rel="noopener">지도 열기 ↗</a><a href="${f.official}" target="_blank" rel="noopener">공식 정보 ↗</a><button data-edit-foliage="${f.id}">정보 수정</button><button data-add-foliage="${f.id}">일정에 추가</button></div></div></article>`).join('')||'<p class="empty-state">선택한 상태의 장소가 없습니다.</p>';
 }
 function renderFood(){
   const q=document.querySelector('#foodSearch')?.value?.toLowerCase()||'';
@@ -481,6 +498,10 @@ function renderMapsImportReview(){
   document.querySelector('#mapsImportList').innerHTML=pendingMapsImports.map((place,index)=>`<article class="maps-import-row ${place.region}"><input type="checkbox" data-import-select="${index}" ${place.selected?'checked':''} ${place.region!=='hokkaido'?'disabled':''}><div><b>${esc(place.name)}</b><small>${esc(place.address||place.sourceList)} · ${place.region==='hokkaido'?'홋카이도':place.region==='outside'?'타지역 제외':'지역 확인 필요'}</small></div><select data-import-category="${index}">${['food','drink','cafe','hotel','shop','tour','move'].map(category=>`<option value="${category}" ${place.category===category?'selected':''}>${CAT[category]?.label||category}</option>`).join('')}</select><a href="${place.url}" target="_blank" rel="noopener" aria-label="Google Maps에서 확인">↗</a></article>`).join('')||'<p class="empty-state">읽을 수 있는 장소가 없습니다. CSV 또는 JSON 내용을 확인해주세요.</p>';
   document.querySelector('#confirmMapsImport').disabled=!selected;
   document.querySelector('#verifyMapsRegions').disabled=!counts.unknown;
+}
+function openMapsImportDialog(){
+  if(!pendingMapsImports.length)document.querySelector('#mapsImportFile').value='';
+  renderMapsImportReview();document.querySelector('#mapsImportDialog').showModal();
 }
 function categoryFromGoogleTypes(types=[]){const values=new Set(types);if([...values].some(type=>['bar','pub','night_club','liquor_store'].includes(type)))return'drink';if([...values].some(type=>['cafe','coffee_shop','bakery','dessert_shop'].includes(type)))return'cafe';if([...values].some(type=>['restaurant','meal_takeaway','ramen_restaurant','sushi_restaurant'].includes(type)))return'food';if([...values].some(type=>['hotel','lodging','resort_hotel'].includes(type)))return'hotel';if([...values].some(type=>['store','shopping_mall','market'].includes(type)))return'shop';if([...values].some(type=>['airport','train_station','transit_station','bus_station'].includes(type)))return'move';return'tour'}
 async function verifyImportedRegions(){
@@ -654,6 +675,20 @@ function openBookingEditor(id){
   search.addEventListener('input',()=>{const match=state.schedules.find(s=>`${s.date.slice(5)} ${s.time} · ${s.place}`===search.value);hidden.value=match?.id||''});
   document.querySelector('#editorDialog').showModal();
 }
+function openFoliageEditor(id){
+  const item=id?state.foliage.find(place=>place.id===id):{id:uid('f'),name:'',area:'삿포로 시내',travel:'확인 필요',transport:'확인 필요',season:'확인 필요',fit:'확인 필요 · 예상',visit:'확인 필요',duration:'1~2시간',fee:'확인 필요',weather:'확인 필요',status:'확인 필요',lat:null,lng:null,map:'',official:'',note:''};
+  if(!item)return;
+  editing={type:'foliage',id:item.id,isNew:!id,item};document.querySelector('#modalEyebrow').textContent=id?'EDIT FOLIAGE':'NEW FOLIAGE';document.querySelector('#modalTitle').textContent=id?'단풍 스팟 수정':'단풍 스팟 추가';document.querySelector('#deleteItem').style.visibility=id?'visible':'hidden';
+  const statuses=['확인 필요','아직 이름','물들기 시작','절정 근접','절정','낙엽 진행'];
+  const fields=[['name','장소명','wide'],['area','지역'],['travel','가는 방법','wide'],['transport','이동수단'],['season','평년 단풍 시기'],['fit','여행 시기 적합도'],['visit','추천 시간'],['duration','예상 체류시간'],['fee','입장료'],['weather','날씨 영향'],['map','Google Maps 링크','wide'],['official','공식 정보 링크','wide'],['note','메모','wide']];
+  document.querySelector('#editorFields').innerHTML=fields.map(([key,label,wide])=>`<label class="field ${wide||''}"><span>${label}</span><input name="${key}" value="${esc(item[key]||'')}" ${key==='name'?'required':''}></label>`).join('')+`<label class="field"><span>현장 상태</span><select name="status">${statuses.map(status=>`<option ${status===item.status?'selected':''}>${status}</option>`).join('')}</select></label>`;
+  document.querySelector('#editorDialog').showModal();
+}
+function addChecklistItem(){
+  const text=prompt('새 할 일을 입력하세요.');
+  if(!text?.trim())return;
+  state.checklist.push({id:uid('c'),category:'기타',text:text.trim(),due:'날짜 미정',done:false,urgent:false});saveState(`${text.trim()} 할 일을 추가했어요`);renderAll();
+}
 
 document.addEventListener('click',e=>{
   const pageBtn=e.target.closest('[data-page],[data-page-link]');if(pageBtn){navigate(pageBtn.dataset.page||pageBtn.dataset.pageLink);return}
@@ -661,16 +696,18 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#sidebarBackdrop')){setMobileMenuOpen(false);return}
   if(e.target.closest('#settingsButton')){setMobileMenuOpen(false);document.querySelector('#settingsDialog').showModal();return}
   if(e.target.closest('#shareButton')){document.querySelector('#settingsDialog').close();document.querySelector('#shareUrl').value=location.href;document.querySelector('#shareDialog').showModal();return}
-  if(e.target.closest('#mapsImportButton')){document.querySelector('#settingsDialog').close();if(!pendingMapsImports.length)document.querySelector('#mapsImportFile').value='';renderMapsImportReview();document.querySelector('#mapsImportDialog').showModal();return}
+  if(e.target.closest('#mapsImportButton')){document.querySelector('#settingsDialog').close();openMapsImportDialog();return}
   if(e.target.closest('#verifyMapsRegions')){verifyImportedRegions();return}
   if(e.target.closest('#confirmMapsImport')){importGoogleMapsPlaces();return}
   if(e.target.closest('#activityButton')){renderActivity();document.querySelector('#activityDialog').showModal();return}
-  if(e.target.closest('#quickAdd')||e.target.closest('[data-action="add-schedule"]')){openScheduleEditor();return}
+  const quickAdd=e.target.closest('#quickAdd');if(quickAdd){const action=quickAdd.dataset.quickAction;if(action==='schedule')openScheduleEditor();else if(action==='foliage')openFoliageEditor();else if(action==='food'||action==='drink')openPlaceEditor(action);else if(action==='maps-import')openMapsImportDialog();else if(action==='expense')openExpenseEditor();else if(action==='booking')openBookingEditor();else if(action==='checklist')addChecklistItem();return}
+  if(e.target.closest('[data-action="add-schedule"]')){openScheduleEditor();return}
   const sch=e.target.closest('[data-edit-schedule]');if(sch){openScheduleEditor(sch.dataset.editSchedule);return}
   const day=e.target.closest('[data-day]');if(day){activeDay=day.dataset.day;renderSchedule();return}
   const check=e.target.closest('[data-check]');if(check){const c=state.checklist.find(x=>x.id===check.dataset.check);c.done=check.checked;saveState(`${c.text} 항목을 ${c.done?'완료':'미완료'}로 변경했어요`);renderAll();return}
   const fol=e.target.closest('[data-foliage-area]');if(fol){activeFoliageArea=fol.dataset.foliageArea;renderFoliage();return}
   const addFol=e.target.closest('[data-add-foliage]');if(addFol){const f=state.foliage.find(x=>x.id===addFol.dataset.addFoliage);if(f)openScheduleEditor(null,{time:'10:00',end:'12:00',place:f.name,category:'tour',description:f.note,duration:120,nextTravel:20,transport:f.transport,cost:0,reservation:'불필요',map:f.map,official:f.official,memo:`${f.status} · 단풍 상태 출발 전 확인`});return}
+  const editFoliage=e.target.closest('[data-edit-foliage]');if(editFoliage){openFoliageEditor(editFoliage.dataset.editFoliage);return}
   const priority=e.target.closest('#foodPriority button');if(priority){activeFoodPriority=priority.dataset.value;document.querySelectorAll('#foodPriority button').forEach(b=>b.classList.toggle('active',b===priority));renderFood();return}
   const addPlace=e.target.closest('[data-action="add-place"]');if(addPlace){openPlaceEditor(addPlace.dataset.type);return}
   if(e.target.closest('[data-action="add-booking"]')){openBookingEditor();return}
@@ -686,7 +723,7 @@ document.addEventListener('click',e=>{
   const expense=e.target.closest('[data-edit-expense]');if(expense){openExpenseEditor(expense.dataset.editExpense);return}
   if(e.target.closest('#resetExpenseFilters')){activeExpenseFilters={month:'all',member:'all',scope:'all',category:'all'};renderBudget();return}
   const importSelect=e.target.closest('[data-import-select]');if(importSelect){pendingMapsImports[Number(importSelect.dataset.importSelect)].selected=importSelect.checked;renderMapsImportReview();return}
-  if(e.target.closest('#addChecklist')){const text=prompt('새 할 일을 입력하세요.');if(text){state.checklist.push({id:uid('c'),category:'기타',text,due:'날짜 미정',done:false,urgent:false});saveState(`${text} 할 일을 추가했어요`);renderAll()}return}
+  if(e.target.closest('#addChecklist')){addChecklistItem();return}
   if(e.target.closest('#copyLink')){navigator.clipboard?.writeText(location.href);toast('공유 링크를 복사했어요.');return}
 });
 document.addEventListener('keydown',e=>{
@@ -723,9 +760,10 @@ document.querySelector('#editorForm').addEventListener('submit',e=>{
   else if(editing.type==='food'||editing.type==='drink'){const arr=editing.type==='food'?state.food:state.drinks,item=editing.isNew?{id:editing.id,type:editing.type,votes:0,voted:false,stars:3,priority:editing.type==='food'?'candidate':3,lat:43.0556,lng:141.3533}:arr.find(x=>x.id===editing.id);Object.assign(item,values);if(editing.isNew)arr.push(item);saveState(`${item.name||'후보'}을 ${editing.isNew?'추가':'수정'}했어요`)}
   else if(editing.type==='expense'){const inputAmount=Number(values.inputAmount)||0;if(values.scope==='individual_shared'&&editing.isNew){MEMBERS.forEach(member=>state.expenses.push({...values,id:uid('e'),scope:'personal',paymentMode:'individual_shared',payer:member,owner:member,inputAmount,inputCurrency:values.inputCurrency,amount:values.inputCurrency==='KRW'?inputAmount/state.exchangeRate:inputAmount,settled:true,participants:[member]}));saveState(`각자 결제 지출 ${values.description||''}을 ${MEMBERS.length}명에게 추가했어요`)}else{const scope=values.scope==='personal'?'personal':'common',owner=scope==='personal'?values.owner:'';const item={...editing.item,...values,scope,owner,inputAmount,inputCurrency:values.inputCurrency,amount:values.inputCurrency==='KRW'?inputAmount/state.exchangeRate:inputAmount,settled:values.settled==='true',participants:scope==='personal'?[owner]:[...MEMBERS]};if(editing.isNew)state.expenses.push(item);else Object.assign(state.expenses.find(e=>e.id===editing.id),item);saveState(`${scope==='personal'?'개인':'공동'} 지출 ${item.description||''}을 ${editing.isNew?'추가':'수정'}했어요`)}}
   else if(editing.type==='booking'){const item={...editing.item,...values,people:Number(values.people)};delete item.scheduleSearch;if(editing.isNew)state.reservations.push(item);else Object.assign(state.reservations.find(r=>r.id===editing.id),item);syncReservationToSchedule(item);saveState(`${item.place} 예약 항목을 ${editing.isNew?'추가':'수정'}했어요`)}
+  else if(editing.type==='foliage'){const item={...editing.item,...values};if(editing.isNew)state.foliage.push(item);else Object.assign(state.foliage.find(place=>place.id===editing.id),item);saveState(`${item.name} 단풍 스팟을 ${editing.isNew?'추가':'수정'}했어요`)}
   document.querySelector('#editorDialog').close();renderAll();toast('변경사항을 저장했어요.');
 });
-document.querySelector('#deleteItem').addEventListener('click',()=>{if(!editing||editing.isNew)return; if(!confirm('이 항목을 삭제할까요?'))return;const arr=editing.type==='schedule'?state.schedules:editing.type==='food'?state.food:editing.type==='drink'?state.drinks:editing.type==='expense'?state.expenses:state.reservations;if(editing.type==='schedule')state.reservations.filter(r=>r.scheduleId===editing.id).forEach(r=>r.scheduleId='');const idx=arr.findIndex(x=>x.id===editing.id);if(idx>=0)arr.splice(idx,1);saveState('항목을 삭제했어요');document.querySelector('#editorDialog').close();renderAll();toast('삭제했어요.');});
+document.querySelector('#deleteItem').addEventListener('click',()=>{if(!editing||editing.isNew)return; if(!confirm('이 항목을 삭제할까요?'))return;const arr=editing.type==='schedule'?state.schedules:editing.type==='food'?state.food:editing.type==='drink'?state.drinks:editing.type==='foliage'?state.foliage:editing.type==='expense'?state.expenses:state.reservations;if(editing.type==='schedule')state.reservations.filter(r=>r.scheduleId===editing.id).forEach(r=>r.scheduleId='');const idx=arr.findIndex(x=>x.id===editing.id);if(idx>=0)arr.splice(idx,1);saveState('항목을 삭제했어요');document.querySelector('#editorDialog').close();renderAll();toast('삭제했어요.');});
 document.querySelectorAll('[data-close-editor]').forEach(button=>button.addEventListener('click',()=>document.querySelector('#editorDialog').close()));
 document.querySelector('#memberButton').addEventListener('click',()=>{const i=MEMBERS.indexOf(activeMember);activeMember=MEMBERS[(i+1)%MEMBERS.length];localStorage.setItem('sapporo-active-member',activeMember);if(signedInUser)localStorage.setItem(`sapporo-member-${signedInUser.id}`,activeMember);renderAll();toast(`이 기기의 사용자를 ${activeMember}(으)로 설정했어요.`)});
 document.querySelector('#previewButton').addEventListener('click',()=>{

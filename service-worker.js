@@ -1,5 +1,5 @@
-const CACHE_NAME='sapporo-shell-v27-live-dashboard';
-const APP_SHELL=['./','./index.html','./manual.html','./sapporo-trip-user-manual.pdf','./style.css?v=19','./pwa.css?v=9','./script.js?v=26','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
+const CACHE_NAME='sapporo-shell-v28-contextual-add';
+const APP_SHELL=['./','./index.html','./manual.html','./sapporo-trip-user-manual.pdf','./style.css?v=19','./pwa.css?v=9','./script.js?v=27','./manifest.webmanifest','./offline.html','./icons/app-icon.svg','./icons/app-icon-192.png','./icons/app-icon-512.png','./icons/apple-touch-icon.png'];
 
 self.addEventListener('install',event=>event.waitUntil(caches.open(CACHE_NAME).then(cache=>cache.addAll(APP_SHELL)).then(()=>self.skipWaiting())));
 self.addEventListener('activate',event=>event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(key=>key!==CACHE_NAME).map(key=>caches.delete(key)))).then(()=>self.clients.claim())));
