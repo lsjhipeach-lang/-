@@ -17,7 +17,7 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Noto+Sans+KR:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
-  <link rel="stylesheet" href="style.css?v=21">
+  <link rel="stylesheet" href="style.css?v=22">
   <link rel="stylesheet" href="pwa.css?v=9">
 </head>
 <body>
@@ -142,6 +142,7 @@
       <div class="map-toolbar"><div class="chips" id="mapFilters"></div></div>
       <div class="main-map-layout"><div id="mainMap"></div><aside id="mapDetail" class="map-detail"><p class="empty-state">지도에서 핀을 선택하세요.</p></aside></div>
       <section class="map-unlocated" id="mapUnlocated"></section>
+      <section class="panel map-place-manager"><div class="panel-head"><div><h3>장소 목록 정리</h3><small id="mapPlaceCount">가져온 장소를 검색하고 한꺼번에 분류할 수 있어요.</small></div></div><div class="map-place-manager-toolbar"><label class="search-box"><span>⌕</span><input id="mapPlaceSearch" type="search" autocomplete="off" placeholder="장소명, 지역, 메모 검색"></label><select id="mapBulkCategory" aria-label="선택 장소 분류"><option value="">분류 선택</option><option value="food">🍣 식사</option><option value="drink">🍶 술</option><option value="cafe">☕ 카페</option><option value="hotel">🏨 숙소</option><option value="shop">🛍 쇼핑</option><option value="tour">🍁 관광</option><option value="move">🚃 이동</option></select><button class="primary" type="button" id="applyMapBulkCategory" disabled>선택 항목 적용</button></div><label class="map-select-all"><input type="checkbox" id="selectAllMapPlaces"><span>현재 목록 전체 선택</span><small id="mapSelectedCount">0개 선택</small></label><div class="map-place-list" id="mapPlaceList"></div></section>
     </section>
 
     <section class="page" id="page-budget">
@@ -190,6 +191,6 @@
   <div class="toast" id="toast" role="status"></div>
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
   <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-  <script src="script.js?v=31"></script>
+  <script src="script.js?v=32"></script>
 </body>
 </html>

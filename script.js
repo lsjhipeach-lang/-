@@ -43,6 +43,8 @@ let serverSaveQueue = Promise.resolve();
 let deferredInstallPrompt = null;
 let otpSendPending = false;
 let otpVerifyPending = false;
+let mapPlaceSearch = '';
+const selectedMapPlaces = new Set();
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 const DEVELOPMENT_HOSTS = new Set(['localhost','127.0.0.1','[::1]']);
 const isDevelopment = location.protocol === 'file:' || DEVELOPMENT_HOSTS.has(location.hostname);
@@ -553,6 +555,7 @@ function importGoogleMapsPlaces(){
 const validCoordinates=place=>Number.isFinite(Number(place.lat))&&Number.isFinite(Number(place.lng));
 function allMapPlaces(){return [...state.foliage.map(f=>({...f,mapSource:'foliage',category:'tour',description:f.note,coordinatesVerified:validCoordinates(f)})),...state.food.map(f=>({...f,mapSource:'food',category:'food',description:f.memo||f.menu,coordinatesVerified:Boolean(f.coordinatesVerified&&validCoordinates(f))})),...state.drinks.map(f=>({...f,mapSource:'drink',category:'drink',description:f.note||`${f.alcohol} · ${f.stage}`,coordinatesVerified:Boolean(f.coordinatesVerified&&validCoordinates(f))})),...(state.savedPlaces||[]).map(p=>({...p,mapSource:'saved',description:p.note||p.sourceList,coordinatesVerified:validCoordinates(p)}))]}
 function mapPlaceSourceCollection(source){return source==='food'?state.food:source==='drink'?state.drinks:source==='saved'?(state.savedPlaces||(state.savedPlaces=[])):source==='foliage'?state.foliage:null}
+const mapPlaceKey=place=>`${place.mapSource}:${place.id}`;
 function mapPlaceStatusLabel(place){const labels={must:'무조건 가기',maybe:'시간 되면',candidate:'후보'};if(place.mapSource==='drink')return place.stage||'후보';return labels[place.status||place.priority]||place.status||'확인 필요'}
 function markerIcon(cat){return L.divIcon({className:'',html:`<div class="map-pin ${cat}"><i></i></div>`,iconSize:[22,22],iconAnchor:[11,22]})}
 function initMainMap(){
@@ -561,8 +564,17 @@ function initMainMap(){
   const filtered=allMapPlaces().filter(p=>activeMapCategory==='전체'||p.category===activeMapCategory);filtered.filter(p=>p.coordinatesVerified).forEach(p=>{const marker=L.marker([p.lat,p.lng],{icon:markerIcon(p.category)}).addTo(mainMap).on('click',()=>renderMapDetail(p));mapMarkers.push(marker)});renderMapUnlocated(filtered.filter(p=>!p.coordinatesVerified));
 }
 function renderMapUnlocated(items){const panel=document.querySelector('#mapUnlocated');panel.innerHTML=items.length?`<div><b>지도 위치 확인이 필요한 장소</b><small>임의 위치에는 표시하지 않습니다. 장소를 눌러 Google Maps에서 확인하세요.</small></div><div class="map-unlocated-list">${items.map(item=>`<button type="button" data-map-unlocated="${item.id}"><span>${CAT[item.category]?.label||'장소'}</span><b>${esc(item.name)}</b></button>`).join('')}</div>`:'';panel.hidden=!items.length}
-function renderMapFilters(){const cats=['전체','tour','food','drink','cafe','hotel','shop'];document.querySelector('#mapFilters').innerHTML=cats.map(c=>`<button class="${c===activeMapCategory?'active':''}" data-map-category="${c}">${c==='전체'?'전체':CAT[c]?.label||c}</button>`).join('')}
+function renderMapFilters(){const cats=['전체','tour','food','drink','cafe','hotel','shop','move'];document.querySelector('#mapFilters').innerHTML=cats.map(c=>`<button class="${c===activeMapCategory?'active':''}" data-map-category="${c}">${c==='전체'?'전체':CAT[c]?.label||c}</button>`).join('')}
 function renderMapDetail(p){const manageButton=p.mapSource==='foliage'?`<button class="secondary full-button" data-edit-foliage="${p.id}">단풍 정보 수정</button>`:`<button class="secondary full-button" data-manage-map="${p.id}">장소 관리</button>`;document.querySelector('#mapDetail').innerHTML=`<p class="eyebrow">${CAT[p.category]?.label||p.area}</p><h2>${esc(p.name)}</h2><p>${esc(p.description||p.note)}</p><div class="detail-pairs"><div><small>지역</small><b>${esc(p.area)}</b></div><div><small>상태</small><b>${esc(mapPlaceStatusLabel(p))}</b></div></div><div class="map-detail-actions"><a href="${esc(p.map||p.url||'#')}" class="primary full-button" target="_blank" rel="noopener">Google Maps 열기 ↗</a><button class="secondary full-button" data-add-map="${p.id}">일정에 추가</button>${manageButton}</div>`}
+function filteredManageableMapPlaces(){const terms=mapPlaceSearch.trim().toLowerCase().split(/\s+/).filter(Boolean);return allMapPlaces().filter(place=>place.mapSource!=='foliage'&&(activeMapCategory==='전체'||place.category===activeMapCategory)&&terms.every(term=>[place.name,place.area,place.address,place.description,place.sourceList].some(value=>String(value||'').toLowerCase().includes(term))))}
+function renderMapPlaceManager(){
+  const all=allMapPlaces().filter(place=>place.mapSource!=='foliage'),validKeys=new Set(all.map(mapPlaceKey));[...selectedMapPlaces].forEach(key=>{if(!validKeys.has(key))selectedMapPlaces.delete(key)});const items=filteredManageableMapPlaces(),visibleKeys=items.map(mapPlaceKey),selectedVisible=visibleKeys.filter(key=>selectedMapPlaces.has(key)).length;
+  document.querySelector('#mapPlaceCount').textContent=`전체 ${all.length}개 · 현재 ${items.length}개`;
+  document.querySelector('#mapSelectedCount').textContent=`${selectedMapPlaces.size}개 선택`;
+  document.querySelector('#applyMapBulkCategory').disabled=!selectedMapPlaces.size||!document.querySelector('#mapBulkCategory').value;
+  document.querySelector('#mapPlaceList').innerHTML=items.length?items.map(place=>`<article class="map-place-row"><input type="checkbox" aria-label="${esc(place.name)} 선택" data-map-place-select="${esc(mapPlaceKey(place))}" ${selectedMapPlaces.has(mapPlaceKey(place))?'checked':''}><button type="button" class="map-place-edit" data-manage-map="${place.id}"><span><b>${esc(place.name)}</b><small>${esc(place.area||place.address||'지역 확인 필요')}</small></span><em>${CAT[place.category]?.label||'장소'}</em><i>${place.coordinatesVerified?'위치 확인됨':'위치 확인 필요'} ›</i></button></article>`).join(''):'<p class="map-place-empty">조건에 맞는 장소가 없습니다.</p>';
+  const selectAll=document.querySelector('#selectAllMapPlaces');selectAll.checked=Boolean(visibleKeys.length&&selectedVisible===visibleKeys.length);selectAll.indeterminate=selectedVisible>0&&selectedVisible<visibleKeys.length;selectAll.disabled=!visibleKeys.length;
+}
 function initSusukinoMap(){if(!window.L)return;if(!susukinoMap){susukinoMap=L.map('susukinoMap',{zoomControl:false,attributionControl:false}).setView([43.0556,141.3533],16);L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(susukinoMap)}drinkMapMarkers.forEach(m=>m.remove());drinkMapMarkers=state.drinks.filter(d=>d.coordinatesVerified&&validCoordinates(d)).map(d=>L.marker([d.lat,d.lng],{icon:markerIcon('drink')}).addTo(susukinoMap).bindPopup(`<b>${esc(d.name)}</b><br>${esc(d.stage)} · 👍 ${d.votes}`))}
 
 function renderBudget(){
@@ -634,7 +646,7 @@ function renderTripPeriod(){
   const firstNight=document.querySelector('#firstNightDate'),first=TRIP_DATES[0];if(firstNight&&first)firstNight.textContent=`${new Intl.DateTimeFormat('en-US',{weekday:'short'}).format(parseDate(first.date)).toUpperCase()} · ${first.short}`;
   document.title=`SAPPORO / ${period}`;
 }
-function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderMobileNow();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=activeMember;document.querySelector('#memberAvatar').textContent=activeMember[0]||'이';document.querySelector('#currentMemberRole').textContent=activeMember===MASTER?'마스터 · 이 기기':'편집자 · 이 기기';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
+function renderAll(){syncTripDates();document.querySelector('#exchangeRate').value=state.exchangeRate;renderTripPeriod();renderStats();renderTimeline();renderHomeChecklist();renderMobileNow();renderSchedule();renderFoliage();renderFood();renderDrinks();renderMapFilters();renderMapPlaceManager();renderBudget();renderBookings();renderChecklist();renderActivity();document.querySelector('#currentMemberName').textContent=activeMember;document.querySelector('#memberAvatar').textContent=activeMember[0]||'이';document.querySelector('#currentMemberRole').textContent=activeMember===MASTER?'마스터 · 이 기기':'편집자 · 이 기기';if(mainMap)initMainMap();if(susukinoMap)initSusukinoMap();queueMicrotask(runConsistencyChecks)}
 
 const scheduleFields=[['time','시간','time'],['end','종료','time'],['place','장소','text','wide'],['category','카테고리','select'],['description','한 줄 설명','text','wide'],['duration','예상 체류시간(분)','number'],['nextTravel','다음 장소 이동시간(분)','number'],['transport','이동방법','text'],['cost','예상 비용(JPY)','number'],['reservation','예약 여부','select'],['reservationTime','예약 시간','time'],['map','Google Maps 링크','url','wide'],['official','공식/예약 링크','url','wide'],['memo','메모','textarea','wide']];
 function parseSmartDate(value){
@@ -697,7 +709,7 @@ function openMapPlaceEditor(id){
   document.querySelector('#editorFields').innerHTML=`<label class="field wide"><span>장소명</span><input name="name" value="${esc(place.name)}" required></label><label class="field"><span>분류</span><select name="mapCategory">${categories.map(category=>`<option value="${category}" ${category===place.category?'selected':''}>${CAT[category]?.label||category}</option>`).join('')}</select><small>맛집·술로 바꾸면 해당 대시보드로 이동합니다.</small></label><label class="field"><span>지역</span><input name="area" value="${esc(place.area||'')}"></label><label class="field wide"><span>주소</span><input name="address" value="${esc(place.address||'')}"></label><label class="field wide"><span>Google Maps 링크</span><input type="url" name="map" value="${esc(place.map||place.url||'')}"></label><label class="field"><span>위도</span><input type="number" step="any" name="lat" value="${validCoordinates(place)?Number(place.lat):''}"></label><label class="field"><span>경도</span><input type="number" step="any" name="lng" value="${validCoordinates(place)?Number(place.lng):''}"></label><label class="field wide"><span>메모 · 한 줄 설명</span><textarea name="note">${esc(place.note||place.memo||place.description||'')}</textarea></label>`;
   document.querySelector('#editorDialog').showModal();
 }
-function saveMapPlace(values){
+function saveMapPlace(values,persist=true){
   const sourceCollection=mapPlaceSourceCollection(editing.source),original=sourceCollection?.find(item=>item.id===editing.id);if(!original)return;
   const target=values.mapCategory,lat=values.lat===''?null:Number(values.lat),lng=values.lng===''?null:Number(values.lng),coordinatesVerified=Number.isFinite(lat)&&Number.isFinite(lng),common={id:original.id,name:values.name.trim(),area:values.area.trim()||'홋카이도',address:values.address.trim(),map:values.map.trim(),lat:coordinatesVerified?lat:null,lng:coordinatesVerified?lng:null,coordinatesVerified,sourceList:original.sourceList||'',votes:Number(original.votes)||0,voted:Boolean(original.voted)};
   let updated;
@@ -706,7 +718,13 @@ function saveMapPlace(values){
   else updated={...common,category:target,url:common.map,note:values.note.trim(),status:original.status||'정보 확인 필요'};
   const sourceIndex=sourceCollection.findIndex(item=>item.id===editing.id);sourceCollection.splice(sourceIndex,1);
   mapPlaceSourceCollection(target==='food'?'food':target==='drink'?'drink':'saved').push(updated);
-  saveState(`${updated.name} 장소 정보를 수정했어요`);
+  if(persist)saveState(`${updated.name} 장소 정보를 수정했어요`);return updated;
+}
+function applyBulkMapCategory(){
+  const target=document.querySelector('#mapBulkCategory').value;if(!target||!selectedMapPlaces.size)return;
+  const snapshots=allMapPlaces().filter(place=>selectedMapPlaces.has(mapPlaceKey(place))&&place.mapSource!=='foliage');let changed=0;
+  snapshots.forEach(place=>{const original=mapPlaceSourceCollection(place.mapSource)?.find(item=>item.id===place.id);if(!original)return;editing={type:'mapPlace',id:place.id,isNew:false,source:place.mapSource,item:original};const updated=saveMapPlace({mapCategory:target,name:place.name||'',area:place.area||'',address:place.address||'',map:place.map||place.url||'',lat:validCoordinates(place)?String(place.lat):'',lng:validCoordinates(place)?String(place.lng):'',note:place.note||place.memo||place.description||''},false);if(updated)changed++});
+  selectedMapPlaces.clear();if(changed)saveState(`${changed}개 장소를 ${CAT[target]?.label||target}(으)로 분류했어요`);renderAll();toast(`${changed}개 장소 분류를 변경했어요.`);
 }
 function openExpenseEditor(id){
   const item=id?state.expenses.find(e=>e.id===id):{id:uid('e'),date:dateKey(new Date()),payer:activeMember,owner:activeMember,scope:'common',inputCurrency:'JPY',inputAmount:0,amount:0,category:'식비',description:'',participants:[...MEMBERS],settled:false};
@@ -771,9 +789,10 @@ document.addEventListener('click',e=>{
   const editPlace=e.target.closest('[data-edit-place]');if(editPlace){const [kind,id]=editPlace.dataset.editPlace.split(':');openPlaceEditor(kind,id);return}
   const vote=e.target.closest('[data-vote]');if(vote){const [kind,id]=vote.dataset.vote.split(':'),item=(kind==='food'?state.food:state.drinks).find(x=>x.id===id);item.voted=!item.voted;item.votes+=item.voted?1:-1;saveState(`${item.name}에 ${item.voted?'투표했어요':'투표를 취소했어요'}`);renderAll();toast(item.voted?'한 표를 보탰어요 👍':'투표를 취소했어요.');return}
   const drink=e.target.closest('[data-drink-category]');if(drink){activeDrinkCategory=drink.dataset.drinkCategory;renderDrinks();return}
-  const mapCat=e.target.closest('[data-map-category]');if(mapCat){activeMapCategory=mapCat.dataset.mapCategory;renderMapFilters();initMainMap();return}
+  const mapCat=e.target.closest('[data-map-category]');if(mapCat){activeMapCategory=mapCat.dataset.mapCategory;renderMapFilters();renderMapPlaceManager();initMainMap();return}
   const unlocated=e.target.closest('[data-map-unlocated]');if(unlocated){const place=allMapPlaces().find(item=>item.id===unlocated.dataset.mapUnlocated);if(place)renderMapDetail(place);return}
   const manageMap=e.target.closest('[data-manage-map]');if(manageMap){openMapPlaceEditor(manageMap.dataset.manageMap);return}
+  if(e.target.closest('#applyMapBulkCategory')){applyBulkMapCategory();return}
   const addMap=e.target.closest('[data-add-map]');if(addMap){const p=allMapPlaces().find(x=>x.id===addMap.dataset.addMap);if(p)openScheduleEditor(null,{time:'12:00',end:'13:30',place:p.name,category:p.category==='drink'?'drink':p.category==='food'?'food':p.category||'tour',description:p.description||p.note||'',duration:90,nextTravel:15,transport:'확인 필요',cost:0,reservation:'확인 필요',map:p.map||p.url||'',official:p.official||'',memo:'지도에서 불러옴'});return}
   if(e.target.closest('#addExpense')){openExpenseEditor();return}
   const expense=e.target.closest('[data-edit-expense]');if(expense){openExpenseEditor(expense.dataset.editExpense);return}
@@ -797,8 +816,12 @@ document.addEventListener('change',e=>{
   if(e.target.matches('[data-food-priority]')){const place=state.food.find(item=>item.id===e.target.dataset.foodPriority),label=e.target.options[e.target.selectedIndex].text;if(place){place.priority=e.target.value;saveState(`${place.name} 우선순위를 변경했어요`);renderAll();toast(`${place.name} · ${label}`)}}
   if(e.target.id==='globalFoliageStatus'){activeFoliageStatus=e.target.value;renderFoliage();}
   if(e.target.matches('[data-foliage-status]')){const place=state.foliage.find(f=>f.id===e.target.dataset.foliageStatus);place.status=e.target.value;saveState(`${place.name} 단풍 상태를 ${place.status}(으)로 변경했어요`);renderAll();toast('단풍 카드와 지도 상세에 상태를 반영했어요.');}
+  if(e.target.matches('[data-map-place-select]')){e.target.checked?selectedMapPlaces.add(e.target.dataset.mapPlaceSelect):selectedMapPlaces.delete(e.target.dataset.mapPlaceSelect);renderMapPlaceManager()}
+  if(e.target.id==='selectAllMapPlaces'){filteredManageableMapPlaces().forEach(place=>e.target.checked?selectedMapPlaces.add(mapPlaceKey(place)):selectedMapPlaces.delete(mapPlaceKey(place)));renderMapPlaceManager()}
+  if(e.target.id==='mapBulkCategory')renderMapPlaceManager();
 });
 document.querySelector('#foodSearch').addEventListener('input',renderFood);
+document.querySelector('#mapPlaceSearch').addEventListener('input',event=>{mapPlaceSearch=event.target.value;renderMapPlaceManager()});
 document.querySelector('#mapsImportFile').addEventListener('change',async e=>{const files=[...e.target.files];document.querySelector('#mapsImportSummary').textContent='파일을 분석하고 있어요…';pendingMapsImports=await parseTakeoutFiles(files);renderMapsImportReview();});
 document.querySelector('#loadMapsSharedList').addEventListener('click',loadSharedMapsList);
 document.querySelector('#mapsSharedListUrl').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();loadSharedMapsList()}});
