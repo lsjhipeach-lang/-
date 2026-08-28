@@ -58,7 +58,7 @@ const CAT = {
 };
 
 const initialData = {
-  version: 4,
+  version: 5,
   tripStart: '2026-10-22',
   tripEnd: '2026-10-26',
   currentMember: '이승재',
@@ -95,22 +95,8 @@ const initialData = {
     {id:'f5',name:'오타루 운하 · 구시가지',area:'오타루',travel:'삿포로역에서 JR 약 35~50분',transport:'JR + 도보',season:'평년 10월 중~하순',fit:'중간 · 예상',visit:'오전~해질녘',duration:'4~6시간',fee:'무료',weather:'해풍·비 영향',status:'확인 필요',lat:43.1986,lng:140.9947,map:'https://maps.google.com/?q=Otaru+Canal',official:'https://www.visit-otaru-en.info/',note:'단풍 단독보다 운하·음식과 결합'},
     {id:'f6',name:'히라오카 수목센터',area:'삿포로 근교',travel:'삿포로 중심에서 대중교통 약 45~60분',transport:'지하철/버스',season:'평년 10월 중~하순',fit:'높음 · 예상',visit:'오전',duration:'1.5~2시간',fee:'확인 필요',weather:'휴원·개방시간 영향',status:'확인 필요',lat:43.0044,lng:141.4577,map:'https://maps.google.com/?q=Hiraoka+Greenery+Center',official:'https://www.sapporo-park.or.jp/jyugei/',note:'공식 개장일·단풍 상태 확인 후 선택'}
   ],
-  food: [
-    {id:'p1',type:'food',name:'니조시장',menu:'카이센동 · 해산물',category:'카이센동',area:'오도리 동쪽',price:'¥2,000~',hours:'점포별 상이 · 확인 필요',closed:'점포별 상이',reservable:'점포별 확인',reserved:false,wait:'오전에도 혼잡 가능',rating:'확인 필요',review:'삿포로 공식 관광 가이드 등재 시장',map:'https://maps.google.com/?q=Nijo+Market+Sapporo',booking:'',visit:'10/26',priority:'must',stars:5,votes:3,memo:'개별 점포를 추후 확정'},
-    {id:'p2',type:'food',name:'삿포로 수프카레 후보',menu:'수프카레',category:'수프카레',area:'삿포로 중심',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'확인 필요',reserved:false,wait:'확인 필요',rating:'확인 필요',review:'멤버 추천 후보 입력 대기',map:'https://maps.google.com/?q=Soup+Curry+Sapporo',booking:'',visit:'10/23',priority:'must',stars:4,votes:4,memo:'실제 업장 투표 후 교체'},
-    {id:'p3',type:'food',name:'오타루 스시 후보',menu:'스시',category:'스시',area:'오타루',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'확인 필요',reserved:false,wait:'주말 혼잡 예상 · 확인 필요',rating:'확인 필요',review:'공식 관광 정보에서 업장 후보 조사 예정',map:'https://maps.google.com/?q=Otaru+Sushi',booking:'',visit:'10/25',priority:'must',stars:5,votes:2,memo:'존재·영업시간 검증 후 업장 확정'},
-    {id:'p4',type:'food',name:'징기스칸 후보',menu:'양고기 구이',category:'징기스칸',area:'스스키노',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'확인 필요',reserved:false,wait:'목·금 저녁 확인 필요',rating:'확인 필요',review:'후보 수집 중',map:'https://maps.google.com/?q=Jingisukan+Susukino',booking:'',visit:'10/22',priority:'maybe',stars:4,votes:3,memo:'흡연 여부도 확인'},
-    {id:'p5',type:'food',name:'삿포로 라멘 후보',menu:'미소 라멘',category:'라멘',area:'스스키노',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'대체로 불가 · 업장 확인',reserved:false,wait:'심야 혼잡 확인 필요',rating:'확인 필요',review:'야식 후보',map:'https://maps.google.com/?q=Ramen+Susukino',booking:'',visit:'미정',priority:'candidate',stars:3,votes:1,memo:'3차 후 체력 남으면'},
-    {id:'p6',type:'food',name:'삿포로 카페 후보',menu:'커피 · 디저트',category:'카페',area:'오도리',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'확인 필요',reserved:false,wait:'확인 필요',rating:'확인 필요',review:'우천 대체 동선',map:'https://maps.google.com/?q=Cafe+Odori+Sapporo',booking:'',visit:'10/23',priority:'candidate',stars:3,votes:0,memo:'멤버 추천 입력 대기'}
-  ],
-  drinks: [
-    {id:'d1',type:'drink',name:'스스키노 이자카야 후보 A',area:'스스키노',mood:'활기찬 로컬 이자카야',alcohol:'사케 · 생맥주',menu:'해산물 안주',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'금·토 혼잡 예상',map:'https://maps.google.com/?q=Izakaya+Susukino',booking:'',priority:5,stage:'1차',category:'이자카야',votes:4,lat:43.0558,lng:141.3532,note:'실제 업장 검증 후 이름 교체'},
-    {id:'d2',type:'drink',name:'사케 바 후보',area:'스스키노',mood:'대화하기 좋은 차분한 바',alcohol:'홋카이도 사케',menu:'사케 페어링',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'좌석 적을 수 있음',map:'https://maps.google.com/?q=Sake+Bar+Susukino',booking:'',priority:5,stage:'2차',category:'사케',votes:3,lat:43.0568,lng:141.3518,note:'금요일 방문 후보'},
-    {id:'d3',type:'drink',name:'일본 위스키 바 후보',area:'스스키노',mood:'조용한 백바',alcohol:'일본 위스키',menu:'위스키 · 칵테일',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'심야 혼잡 확인',map:'https://maps.google.com/?q=Whisky+Bar+Susukino',booking:'',priority:4,stage:'2차',category:'일본 위스키',votes:4,lat:43.0548,lng:141.3522,note:'업장 확정 전 일반 검색 링크'},
-    {id:'d4',type:'drink',name:'크래프트 맥주 후보',area:'다누키코지',mood:'캐주얼 탭룸',alcohol:'홋카이도 크래프트 맥주',menu:'탭 맥주 · 스낵',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'확인 필요',map:'https://maps.google.com/?q=Craft+Beer+Sapporo',booking:'',priority:4,stage:'1차/2차',category:'크래프트 맥주',votes:2,lat:43.0575,lng:141.3501,note:'토요일 후보'},
-    {id:'d5',type:'drink',name:'심야 칵테일 바 후보',area:'스스키노',mood:'어두운 클래식 바',alcohol:'칵테일',menu:'시그니처 칵테일',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'확인 필요',map:'https://maps.google.com/?q=Cocktail+Bar+Susukino',booking:'',priority:3,stage:'3차',category:'칵테일 바',votes:1,lat:43.0551,lng:141.3550,note:'숙소 복귀 동선 내에서 선택'},
-    {id:'d6',type:'drink',name:'야키토리 + 술 후보',area:'삿포로역~스스키노',mood:'로컬 선술집',alcohol:'사와 · 사케',menu:'야키토리',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'토요일 혼잡 확인',map:'https://maps.google.com/?q=Yakitori+Sapporo',booking:'',priority:4,stage:'저녁/1차',category:'야키토리 + 술',votes:3,lat:43.0601,lng:141.3531,note:'실제 업장 후보 추가 필요'}
-  ],
+  food: [],
+  drinks: [],
   reservations: [
     {id:'r1',scheduleId:'',place:'항공편',date:'2026-10-22',time:'확인 필요',people:2,booker:'이승재',method:'항공사',number:'',link:'',deadline:'확인 필요',note:'편명·시간 입력',status:'예약 예정'},
     {id:'r2',scheduleId:'s2',place:'삿포로 숙소',date:'2026-10-22',time:'15:00',people:2,booker:'윤지원',method:'예약 사이트',number:'',link:'',deadline:'확인 필요',note:'스스키노/오도리 접근성 우선',status:'예약 예정'},
@@ -186,6 +172,17 @@ let mainMap, susukinoMap, mapMarkers = [], drinkMapMarkers = [];
 const openChecklistGroups = new Set(['의류 · 방한']);
 
 function validStoredState(value){return value&&typeof value==='object'&&Array.isArray(value.schedules)&&Array.isArray(value.expenses)&&Array.isArray(value.reservations)}
+const LEGACY_FOOD_CANDIDATE_IDS=new Set(['p1','p2','p3','p4','p5','p6']);
+const LEGACY_DRINK_CANDIDATE_IDS=new Set(['d1','d2','d3','d4','d5','d6']);
+function cleanupLegacyCandidateData(snapshot){
+  if(!snapshot||typeof snapshot!=='object')return false;
+  const foodBefore=Array.isArray(snapshot.food)?snapshot.food.length:0,drinksBefore=Array.isArray(snapshot.drinks)?snapshot.drinks.length:0;
+  snapshot.food=(Array.isArray(snapshot.food)?snapshot.food:[]).filter(item=>!LEGACY_FOOD_CANDIDATE_IDS.has(item.id));
+  snapshot.drinks=(Array.isArray(snapshot.drinks)?snapshot.drinks:[]).filter(item=>!LEGACY_DRINK_CANDIDATE_IDS.has(item.id));
+  const changed=foodBefore!==snapshot.food.length||drinksBefore!==snapshot.drinks.length||snapshot.version!==initialData.version;
+  snapshot.version=initialData.version;
+  return changed;
+}
 function readStoredJson(key){try{return JSON.parse(localStorage.getItem(key))}catch{return null}}
 function persistLocalState(next,{keepPrevious=true}={}){
   if(PREVIEW_MODE||!validStoredState(next))return;
@@ -217,6 +214,7 @@ function loadState(){
       saved.reservations?.forEach(r=>{if(!r.scheduleId&&reservationLinks[r.id])r.scheduleId=reservationLinks[r.id]});
       saved.expenses?.forEach(e=>{e.scope=e.scope||'common';e.owner=e.scope==='personal'?(e.owner||e.payer):'';e.inputCurrency=e.inputCurrency||'JPY';e.inputAmount=Number(e.inputAmount??e.amount);e.participants=e.scope==='personal'?[e.owner]:[...MEMBERS]});
       saved.savedPlaces=Array.isArray(saved.savedPlaces)?saved.savedPlaces:[];
+      cleanupLegacyCandidateData(saved);
       persistLocalState(saved,{keepPrevious:false});return saved;
     }
     const migrated = structuredClone(initialData);
@@ -229,6 +227,7 @@ function loadState(){
     migrated.exchangeRate=Number(saved.exchangeRate||localStorage.getItem('sapporo-rate'))||initialData.exchangeRate;
     migrated.tripStart=saved.tripStart||initialData.tripStart;
     migrated.tripEnd=saved.tripEnd||initialData.tripEnd;
+    cleanupLegacyCandidateData(migrated);
     persistLocalState(migrated);return migrated;
   }
   catch { return structuredClone(initialData); }
@@ -291,10 +290,13 @@ async function loadRemoteState(){
   const {data,error}=await supabaseClient.from('trip_states').select('data,updated_at,revision').eq('trip_id',TRIP_ID).maybeSingle();
   if(error){document.querySelector('#syncText').textContent='서버 연결 실패 · 기기 데이터 사용 중';console.error(error);return}
   if(data?.data){
-    const localTime=Date.parse(state.updatedAt||0)||0,remoteTime=Date.parse(data.data.updatedAt||data.updated_at||0)||0;
+    const remoteData=structuredClone(data.data),cleanedLegacyCandidates=cleanupLegacyCandidateData(remoteData),localTime=Date.parse(state.updatedAt||0)||0,remoteTime=Date.parse(remoteData.updatedAt||data.updated_at||0)||0;
     remoteRevision=Number(data.revision)||0;lastSyncedState=structuredClone(data.data);
     if(localTime>remoteTime+1000){state.activity.unshift({member:activeMember,action:'기기의 최신 데이터를 서버에 복구했어요',time:'방금 전'});state.updatedAt=new Date().toISOString();persistLocalState(state);queueServerSnapshot(structuredClone(state));document.querySelector('#syncText').textContent='기기 최신 데이터를 서버에 저장 중…';return}
-    persistLocalState(data.data);state=data.data;renderAll();document.querySelector('#syncText').textContent='서버 백업과 동기화됨';toast('서버에 보관된 여행 데이터를 불러왔어요.');
+    state=remoteData;
+    if(cleanedLegacyCandidates){state.activity.unshift({member:activeMember,action:'초기 맛집·술 후보 12개를 정리했어요',time:'방금 전'});state.activity=state.activity.slice(0,20);state.updatedAt=new Date().toISOString()}
+    persistLocalState(state);renderAll();
+    if(cleanedLegacyCandidates){queueServerSnapshot(structuredClone(state));document.querySelector('#syncText').textContent='후보 정리 결과를 서버에 저장 중…';toast('초기 맛집·술 후보 12개를 삭제했어요.')}else{document.querySelector('#syncText').textContent='서버 백업과 동기화됨';toast('서버에 보관된 여행 데이터를 불러왔어요.')}
   }
   else{const {data:created,error:createError}=await supabaseClient.from('trip_states').insert({trip_id:TRIP_ID,data:state,updated_at:new Date().toISOString(),revision:0}).select('revision').maybeSingle();if(createError)throw createError;remoteRevision=Number(created?.revision)||0;lastSyncedState=structuredClone(state)}
 }
@@ -490,10 +492,15 @@ function normalizeTakeoutRecord(record,sourceList){
   const name=takeoutValue(record,['title','name','place name','장소명'])||'이름 확인 필요',url=takeoutValue(record,['url','google maps url','link','지도 링크']),note=takeoutValue(record,['note','comment','description','메모']),address=takeoutValue(record,['address','formatted address','주소']),rawLat=takeoutValue(record,['latitude','lat','위도']),rawLng=takeoutValue(record,['longitude','lng','lon','경도']),urlCoordinates=url.match(/@(-?\d+(?:\.\d+)?),(-?\d+(?:\.\d+)?)/)||url.match(/[?&](?:query|q)=(-?\d+(?:\.\d+)?)[,%2C]+(-?\d+(?:\.\d+)?)/i),lat=rawLat||urlCoordinates?.[1],lng=rawLng||urlCoordinates?.[2];
   const place={id:uid('gm'),name,url:url||`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(name)}`,note,address,lat:lat?Number(lat):null,lng:lng?Number(lng):null,sourceList,category:'tour',region:'unknown',selected:false};place.category=classifyImportedPlace(place);place.region=detectHokkaidoRegion(place);place.selected=place.region==='hokkaido';return place;
 }
+function normalizePlaceKey(value){
+  const raw=String(value||'').trim();if(!raw)return'';
+  try{const url=new URL(raw);url.hash='';['g_st','entry','utm_source','utm_medium','utm_campaign'].forEach(key=>url.searchParams.delete(key));url.searchParams.sort();return url.toString().replace(/\/$/,'').toLowerCase()}
+  catch{return raw.toLowerCase().replace(/\s+/g,' ')}
+}
 function flattenTakeoutJson(value,sourceList,result=[]){if(Array.isArray(value))value.forEach(item=>flattenTakeoutJson(item,sourceList,result));else if(value&&typeof value==='object'){if(takeoutValue(value,['title','name','place name'])||takeoutValue(value,['url','google maps url','link']))result.push(normalizeTakeoutRecord(value,sourceList));else Object.values(value).forEach(item=>flattenTakeoutJson(item,sourceList,result))}return result}
 async function parseTakeoutFiles(files){
   const parsed=[];for(const file of files){const text=await file.text(),sourceList=file.name.replace(/\.(csv|json)$/i,'');try{if(file.name.toLowerCase().endsWith('.json'))parsed.push(...flattenTakeoutJson(JSON.parse(text),sourceList));else parsed.push(...parseCsv(text).map(record=>normalizeTakeoutRecord(record,sourceList)))}catch(error){console.warn(`Takeout parse failed: ${file.name}`,error)}}
-  const seen=new Set();return parsed.filter(place=>{const key=(place.url||place.name).toLowerCase().replace(/[?#].*$/,'');if(seen.has(key))return false;seen.add(key);return true});
+  const seen=new Set();return parsed.filter(place=>{const key=normalizePlaceKey(place.url||place.name);if(seen.has(key))return false;seen.add(key);return true});
 }
 async function loadSharedMapsList(){
   const input=document.querySelector('#mapsSharedListUrl'),button=document.querySelector('#loadMapsSharedList'),url=input.value.trim();
@@ -517,13 +524,31 @@ function openMapsImportDialog(){
   if(!pendingMapsImports.length)document.querySelector('#mapsImportFile').value='';
   renderMapsImportReview();document.querySelector('#mapsImportDialog').showModal();
 }
+function importedFoodRecord(place,previous={}){
+  const coordinatesVerified=Number.isFinite(Number(place.lat))&&Number.isFinite(Number(place.lng));
+  return {id:previous.id||place.id,type:'food',name:place.name,menu:place.note||previous.menu||'메뉴 확인 필요',category:previous.category&&previous.category!=='Google Maps 가져오기'?previous.category:'Google Maps 가져오기',area:previous.area&&previous.area!=='홋카이도'?previous.area:(place.address||'홋카이도'),address:place.address,price:previous.price||'확인 필요',hours:previous.hours||'확인 필요',closed:previous.closed||'확인 필요',reservable:previous.reservable||'확인 필요',reserved:Boolean(previous.reserved),wait:previous.wait||'확인 필요',rating:previous.rating||'확인 필요',review:`Google Maps · ${place.sourceList}`,map:place.url,booking:previous.booking||'',visit:previous.visit||'미정',priority:previous.priority||'candidate',stars:Number.isFinite(Number(previous.stars))?Number(previous.stars):3,votes:Number(previous.votes)||0,voted:Boolean(previous.voted),memo:place.note||previous.memo||'Google Maps에서 가져옴',sourceList:place.sourceList,lat:coordinatesVerified?Number(place.lat):null,lng:coordinatesVerified?Number(place.lng):null,coordinatesVerified};
+}
+function importedDrinkRecord(place,previous={}){
+  const coordinatesVerified=Number.isFinite(Number(place.lat))&&Number.isFinite(Number(place.lng));
+  return {id:previous.id||place.id,type:'drink',name:place.name,area:previous.area&&previous.area!=='홋카이도'?previous.area:(place.address||'홋카이도'),address:place.address,mood:previous.mood||'확인 필요',alcohol:previous.alcohol||'확인 필요',menu:place.note||previous.menu||'메뉴 확인 필요',price:previous.price||'확인 필요',hours:previous.hours||'확인 필요',lastOrder:previous.lastOrder||'확인 필요',reservable:previous.reservable||'확인 필요',smoking:previous.smoking||'확인 필요',crowd:previous.crowd||'확인 필요',map:place.url,booking:previous.booking||'',priority:Number(previous.priority)||3,stage:previous.stage||'후보',category:previous.category&&previous.category!=='Google Maps 가져오기'?previous.category:'Google Maps 가져오기',votes:Number(previous.votes)||0,voted:Boolean(previous.voted),lat:coordinatesVerified?Number(place.lat):null,lng:coordinatesVerified?Number(place.lng):null,coordinatesVerified,note:place.note||previous.note||`${place.sourceList}에서 가져옴`,sourceList:place.sourceList};
+}
+function importedSavedPlaceRecord(place,previous={}){
+  return {id:previous.id||place.id,name:place.name,category:place.category,area:previous.area&&previous.area!=='홋카이도'?previous.area:(place.address||'홋카이도'),address:place.address,map:place.url,url:place.url,lat:Number.isFinite(Number(place.lat))?Number(place.lat):null,lng:Number.isFinite(Number(place.lng))?Number(place.lng):null,note:place.note||previous.note||'Google Maps에서 가져옴',sourceList:place.sourceList,status:previous.status||'정보 확인 필요'};
+}
 function importGoogleMapsPlaces(){
-  const chosen=pendingMapsImports.filter(place=>place.selected&&place.region==='hokkaido'),existingKeys=new Set([...state.food,...state.drinks,...(state.savedPlaces||[])].flatMap(place=>[place.map||place.url,place.name].filter(Boolean).map(value=>String(value).toLowerCase().replace(/[?#].*$/,''))));let added=0,duplicates=0;
-  chosen.forEach(place=>{const keys=[place.url,place.name].map(value=>String(value||'').toLowerCase().replace(/[?#].*$/,''));if(keys.some(key=>key&&existingKeys.has(key))){duplicates++;return}keys.forEach(key=>key&&existingKeys.add(key));
-    if(place.category==='food')state.food.push({id:place.id,type:'food',name:place.name,menu:place.note||'메뉴 확인 필요',category:'Google Maps 가져오기',area:place.address||'홋카이도',price:'확인 필요',hours:'확인 필요',closed:'확인 필요',reservable:'확인 필요',reserved:false,wait:'확인 필요',rating:'확인 필요',review:`Google Maps · ${place.sourceList}`,map:place.url,booking:'',visit:'미정',priority:'candidate',stars:3,votes:0,memo:place.note||'Takeout에서 가져옴'});
-    else if(place.category==='drink')state.drinks.push({id:place.id,type:'drink',name:place.name,area:place.address||'홋카이도',mood:'확인 필요',alcohol:'확인 필요',menu:place.note||'메뉴 확인 필요',price:'확인 필요',hours:'확인 필요',lastOrder:'확인 필요',reservable:'확인 필요',smoking:'확인 필요',crowd:'확인 필요',map:place.url,booking:'',priority:3,stage:'후보',category:'Google Maps 가져오기',votes:0,...(place.lat&&place.lng?{lat:place.lat,lng:place.lng,coordinatesVerified:true}:{}),note:`${place.sourceList}에서 가져옴`});
-    else state.savedPlaces.push({id:place.id,name:place.name,category:place.category,area:place.address||'홋카이도',address:place.address,map:place.url,url:place.url,lat:place.lat,lng:place.lng,note:place.note||'Takeout에서 가져옴',sourceList:place.sourceList,status:'정보 확인 필요'});added++});
-  if(added){saveState(`Google Maps에서 홋카이도 장소 ${added}개를 가져왔어요`);renderAll()}document.querySelector('#mapsImportDialog').close();toast(`${added}개 추가${duplicates?` · 중복 ${duplicates}개 제외`:''}`);return {added,duplicates};
+  const chosen=pendingMapsImports.filter(place=>place.selected&&place.region==='hokkaido'),collections=[['food',state.food],['drink',state.drinks],['saved',state.savedPlaces||(state.savedPlaces=[])]];let added=0,updated=0,duplicates=0;
+  chosen.forEach(place=>{
+    const keys=new Set([normalizePlaceKey(place.url),normalizePlaceKey(place.name)].filter(Boolean));let match=null;
+    for(const [kind,items] of collections){const item=items.find(candidate=>[candidate.map||candidate.url,candidate.name].some(value=>keys.has(normalizePlaceKey(value))));if(item){match={kind,item};break}}
+    const importedMatch=match&&(String(match.item.id||'').startsWith('gm')||match.item.sourceList||String(match.item.review||'').includes('Google Maps'));
+    if(match&&!importedMatch){duplicates++;return}
+    if(match){collections.forEach(([,items])=>{const index=items.findIndex(item=>item.id===match.item.id);if(index>=0)items.splice(index,1)});updated++}else added++;
+    const previous=match?.item||{};
+    if(place.category==='food')state.food.push(importedFoodRecord(place,previous));
+    else if(place.category==='drink')state.drinks.push(importedDrinkRecord(place,previous));
+    else state.savedPlaces.push(importedSavedPlaceRecord(place,previous));
+  });
+  if(added||updated){saveState(`Google Maps 장소 ${added}개 추가 · ${updated}개 보완`);renderAll()}document.querySelector('#mapsImportDialog').close();toast(`${added}개 추가 · ${updated}개 보완${duplicates?` · 기존 데이터 ${duplicates}개 유지`:''}`);return {added,updated,duplicates};
 }
 const validCoordinates=place=>Number.isFinite(Number(place.lat))&&Number.isFinite(Number(place.lng));
 function allMapPlaces(){return [...state.foliage.map(f=>({...f,category:'tour',description:f.note,coordinatesVerified:validCoordinates(f)})),...state.food.map(f=>({...f,category:'food',description:f.menu,coordinatesVerified:Boolean(f.coordinatesVerified&&validCoordinates(f))})),...state.drinks.map(f=>({...f,category:'drink',description:`${f.alcohol} · ${f.stage}`,coordinatesVerified:Boolean(f.coordinatesVerified&&validCoordinates(f))})),...(state.savedPlaces||[]).map(p=>({...p,description:p.note||p.sourceList,coordinatesVerified:validCoordinates(p)}))]}
