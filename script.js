@@ -468,10 +468,13 @@ function parseCsv(text){
 function takeoutValue(record,names){for(const name of names){const key=Object.keys(record).find(item=>item.toLowerCase()===name);if(key&&record[key]!==undefined)return String(record[key])}return''}
 function classifyImportedPlace(place){
   const text=`${place.name} ${place.note} ${place.sourceList}`.toLowerCase();
-  if(/bar|pub|izakaya|brew|whisk|cocktail|sake|wine|beer|술|주점|바|이자카야|居酒屋|バー|酒/.test(text))return'drink';
+  if(/museum|박물관|뮤지엄|博物館/.test(text))return'tour';
+  if(/hotel|hostel|resort|ryokan|숙소|숙박|호텔|료칸|旅館/.test(text))return'hotel';
+  if(/고츠보|カドヤ|카도야/.test(text))return'food';
+  if(/상점|판매점|리쿼|악기점|돈키호테|파르코|사케샵|sakenosokuhai|ヤマショウ|(?<!居)酒屋/.test(text))return'shop';
+  if(/\bbar\b|pub|izakaya|brew|whisk|cocktail|sake|wine|beer|술|주점|(?:^|\s)바(?:\s|$)|사케바|몰트바|시가바|스탠딩바|이자카야|야키토리|야끼토리|로바다|선술집|居酒屋|焼鳥|炉端|バー/.test(text))return'drink';
   if(/cafe|coffee|dessert|bakery|카페|커피|디저트|베이커리|喫茶|珈琲/.test(text))return'cafe';
-  if(/restaurant|ramen|sushi|curry|food|grill|dining|맛집|식당|라멘|스시|카레|징기스칸|食堂|料理|寿司|ラーメン/.test(text))return'food';
-  if(/hotel|hostel|resort|ryokan|숙소|호텔|료칸|旅館/.test(text))return'hotel';
+  if(/restaurant|ramen|sushi|curry|food|grill|dining|맛집|식당|라멘|국수|소바|스시|초밥|오마카세|카레|징기스칸|징키스칸|굴|카츠|食堂|料理|寿司|蕎麦|ラーメン/.test(text))return'food';
   if(/shop|mall|market|store|쇼핑|시장|백화점|商店|市場/.test(text))return'shop';
   if(/station|airport|terminal|역|공항|駅|空港/.test(text))return'move';
   return'tour';
@@ -491,6 +494,17 @@ function flattenTakeoutJson(value,sourceList,result=[]){if(Array.isArray(value))
 async function parseTakeoutFiles(files){
   const parsed=[];for(const file of files){const text=await file.text(),sourceList=file.name.replace(/\.(csv|json)$/i,'');try{if(file.name.toLowerCase().endsWith('.json'))parsed.push(...flattenTakeoutJson(JSON.parse(text),sourceList));else parsed.push(...parseCsv(text).map(record=>normalizeTakeoutRecord(record,sourceList)))}catch(error){console.warn(`Takeout parse failed: ${file.name}`,error)}}
   const seen=new Set();return parsed.filter(place=>{const key=(place.url||place.name).toLowerCase().replace(/[?#].*$/,'');if(seen.has(key))return false;seen.add(key);return true});
+}
+async function loadSharedMapsList(){
+  const input=document.querySelector('#mapsSharedListUrl'),button=document.querySelector('#loadMapsSharedList'),url=input.value.trim();
+  if(!url)return toast('Google Maps 공유 목록 링크를 붙여 넣어 주세요.');
+  if(!signedInUser||!supabaseClient)return toast('공유 목록은 서버 로그인 후 불러올 수 있어요.');
+  button.disabled=true;button.textContent='불러오는 중…';document.querySelector('#mapsImportSummary').textContent='공개 목록의 장소를 확인하고 있어요…';
+  try{
+    const {data,error}=await supabaseClient.functions.invoke('maps-shared-list',{body:{url}});if(error)throw error;if(!data?.places?.length)throw new Error('목록에서 장소를 찾지 못했습니다.');
+    pendingMapsImports=data.places.map(record=>normalizeTakeoutRecord(record,data.listName||'Google Maps 공유 목록'));renderMapsImportReview();toast(`${data.listName||'공유 목록'} · ${pendingMapsImports.length}개를 불러왔어요.`);
+  }catch(error){console.warn('Shared Maps list import failed',error);pendingMapsImports=[];renderMapsImportReview();document.querySelector('#mapsImportSummary').textContent='목록을 읽지 못했습니다. 링크 공유 권한과 주소를 확인해 주세요.';toast('공유 목록을 불러오지 못했어요.');}
+  finally{button.disabled=false;button.textContent='목록 불러오기'}
 }
 function renderMapsImportReview(){
   const counts={hokkaido:pendingMapsImports.filter(item=>item.region==='hokkaido').length,outside:pendingMapsImports.filter(item=>item.region==='outside').length,unknown:pendingMapsImports.filter(item=>item.region==='unknown').length},selected=pendingMapsImports.filter(item=>item.selected).length;
@@ -738,6 +752,8 @@ document.addEventListener('change',e=>{
 });
 document.querySelector('#foodSearch').addEventListener('input',renderFood);
 document.querySelector('#mapsImportFile').addEventListener('change',async e=>{const files=[...e.target.files];document.querySelector('#mapsImportSummary').textContent='파일을 분석하고 있어요…';pendingMapsImports=await parseTakeoutFiles(files);renderMapsImportReview();});
+document.querySelector('#loadMapsSharedList').addEventListener('click',loadSharedMapsList);
+document.querySelector('#mapsSharedListUrl').addEventListener('keydown',event=>{if(event.key==='Enter'){event.preventDefault();loadSharedMapsList()}});
 document.querySelector('#tripPeriodForm').addEventListener('submit',e=>{
   e.preventDefault();const smartInputs=[...e.currentTarget.querySelectorAll('[data-smart-date],[data-smart-time]')];if(!smartInputs.every(input=>normalizeSmartInput(input,true)))return;const start=e.currentTarget.tripStart.value,end=e.currentTarget.tripEnd.value;
   if(!start||!end)return toast('시작일과 종료일을 모두 입력해주세요.');

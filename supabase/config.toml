@@ -1,2 +1,5 @@
 [functions.places-enrich]
 verify_jwt = true
+
+[functions.maps-shared-list]
+verify_jwt = true
