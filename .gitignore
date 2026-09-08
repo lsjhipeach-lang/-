@@ -1,1 +1,4 @@
 supabase/.temp/
+
+# Local browser QA dependencies and isolated profiles
+.qa/

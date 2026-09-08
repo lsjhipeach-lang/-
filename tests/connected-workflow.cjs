@@ -1,0 +1,38 @@
+const {chromium}=require('../.qa/node_modules/playwright');
+const assert=require('node:assert/strict');
+(async()=>{
+ const browser=await chromium.launch({executablePath:'C:/Program Files (x86)/Microsoft/Edge/Application/msedge.exe',headless:true});
+ const context=await browser.newContext({viewport:{width:390,height:844}});
+ const page=await context.newPage();const errors=[];page.on('pageerror',e=>errors.push(e.message));
+ await page.route('**/*',route=>route.request().url().includes('leaflet@1.9.4/dist/leaflet.js')?route.fulfill({path:require('node:path').resolve('.qa/node_modules/leaflet/dist/leaflet.js'),contentType:'application/javascript'}):route.request().url().includes('leaflet@1.9.4/dist/leaflet.css')?route.fulfill({path:require('node:path').resolve('.qa/node_modules/leaflet/dist/leaflet.css'),contentType:'text/css'}):route.request().url().startsWith('http://localhost:8080')?route.continue():route.abort());
+ await page.goto('http://localhost:8080/index.html?preview=1');await page.waitForTimeout(500);
+ await page.evaluate(()=>document.querySelector('#featureGuideDialog').close());
+ console.log('initial errors',errors);
+ assert.deepEqual(await page.locator('.mobile-nav button').allTextContents(),['⌂홈','▤일정','⌖장소','¥경비','☰더보기']);
+ await page.locator('[data-more-menu]').click();assert.equal(await page.locator('#sidebar').evaluate(e=>e.classList.contains('open')),true);await page.locator('#sidebarBackdrop').click({position:{x:380,y:200}});
+ assert.equal(await page.evaluate(()=>/\?{3,}/.test(document.body.textContent)),false);
+ await page.evaluate(()=>{navigate('schedule');openScheduleEditor(null,{place:'QA visit',date:activeDay,placeId:'f1',placeSource:'foliage'})});
+ await page.locator('[name=cost]').fill('1000');await page.locator('[name=costBasis]').selectOption('total');
+ await page.locator('#editorForm button[type=submit]').click();
+ const sid=await page.evaluate(()=>state.schedules.at(-1).id);
+ assert.equal(await page.evaluate(id=>plannedTotal(state.schedules.find(s=>s.id===id)),sid),1000);
+ await page.evaluate(id=>openScheduleEditor(id),sid);await page.locator('[data-new-booking]').click();
+ const bookingFields=await page.evaluate(()=>{const f=document.querySelector('#editorForm');return [f.elements.place.value,f.elements.date.value,f.elements.time.value]});
+ assert.equal(bookingFields[2],'12:00');
+ await page.locator('#editorForm button[type=submit]').click();
+ const rid=await page.evaluate(()=>state.reservations.at(-1).id);
+ await page.evaluate(id=>openScheduleEditor(id),sid);await page.locator('[data-new-expense]').click();await page.locator('[name=inputAmount]').fill('800');await page.locator('#editorForm button[type=submit]').click();
+ assert.equal(await page.evaluate(id=>state.expenses.at(-1).scheduleId===id,sid),true);
+ await page.evaluate(id=>{openScheduleEditor(id)},sid);await page.locator('[name=date]').fill('2026-10-23');await page.locator('#editorForm button[type=submit]').click();
+ assert.equal(await page.evaluate(id=>state.reservations.find(r=>r.id===id).date,rid),'2026-10-23');
+ await page.evaluate(id=>{const p=state.foliage.find(p=>p.id==='f1');p.name='Updated QA place';saveState();renderAll()},sid);
+ assert.equal(await page.evaluate(id=>state.schedules.find(s=>s.id===id).place,sid),'Updated QA place');
+ await page.evaluate(id=>openBookingEditor(id),rid);await page.locator('[name=status]').selectOption('취소');await page.locator('#editorForm button[type=submit]').click();
+ assert.equal(await page.evaluate(id=>state.schedules.find(s=>s.id===id).reservation,sid),'확인 필요');
+ const overflow=[];
+ for(const width of [360,390,1280]){await page.setViewportSize({width,height:900});for(const name of ['home','schedule','map','food','drinks','booking','budget','checklist']){await page.evaluate(n=>navigate(n),name);await page.waitForTimeout(40);const size=await page.evaluate(()=>({w:document.documentElement.clientWidth,s:document.documentElement.scrollWidth}));if(size.s>size.w+1)overflow.push({width,name,...size})}}
+ console.log('overflow',overflow);console.log('errors',errors);assert.deepEqual(errors,[]);assert.deepEqual(overflow,[]);
+ assert.equal(await page.evaluate(()=>localStorage.getItem('sapporo-trip-v3')),null);
+ await page.setViewportSize({width:390,height:844});await page.evaluate(()=>{activeDay='2026-10-23';navigate('map');tripUI.mapScope='day';tripUI.placeView='map';renderAll()});await page.waitForTimeout(150);assert.ok(await page.evaluate(()=>mainMap!==null&&mapMarkers.length>0));await page.screenshot({path:'.qa/map.png',fullPage:true});await page.evaluate(()=>navigate('home'));await page.screenshot({path:'.qa/home.png',fullPage:true});assert.deepEqual(errors,[]);
+ await browser.close();console.log('PASS connected workflow, cancellation, preservation, viewports');
+})().catch(e=>{console.error(e);process.exit(1)});
