@@ -12,6 +12,7 @@ python -m http.server 8080
 ```powershell
 node tests/connected-workflow.cjs
 node tests/data-preservation.cjs
+node tests/user-guide.cjs
 node --check script.js
 node --check connections.js
 node --check service-worker.js
@@ -22,5 +23,6 @@ git diff --check
 
 - `connected-workflow.cjs`: 메뉴, 장소→일정→예약→지출, 예약 취소, 날짜·장소 변경, 비용 기준, 미리보기 무저장, 360·390·1280px 가로 넘침, 지도 실행
 - `data-preservation.cjs`: 분류 변경, 자정 통과, 여러 예약의 상태 집계, 삭제 후 기록 보존, 각자 결제, 키보드 장소 검색, 기존 예약 연결 해제, 로컬 재접속, 뒤로가기
+- `user-guide.cjs`: 모바일 더보기의 설정에서 사용자 안내가 보이는지와 PDF가 정상 제공되는지 확인
 
 캡처와 의존성은 Git에서 제외된 `.qa/`에 저장한다. 실제 계정의 서버 동기화 및 실기기 PWA 설치 검증은 별도로 진행해야 한다.
