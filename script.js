@@ -4,11 +4,11 @@
    adapter (Supabase/Firebase) for cross-device authenticated collaboration. */
 
 const DEFAULT_TRIP_DATES = [
-  { date: '2026-10-22', label: 'DAY 1', short: '10.22', weekday: '목', theme: '도착 · 스스키노' },
-  { date: '2026-10-23', label: 'DAY 2', short: '10.23', weekday: '금', theme: '삿포로의 가을' },
-  { date: '2026-10-24', label: 'DAY 3', short: '10.24', weekday: '토', theme: '조잔케이' },
-  { date: '2026-10-25', label: 'DAY 4', short: '10.25', weekday: '일', theme: '오타루 · 운하의 밤' },
-  { date: '2026-10-26', label: 'DAY 5', short: '10.26', weekday: '월', theme: '시장 · 귀국' }
+  { date: '2026-10-21', label: 'DAY 1', short: '10.21', weekday: '수', theme: '출국 · 도착 · 스스키노' },
+  { date: '2026-10-22', label: 'DAY 2', short: '10.22', weekday: '목', theme: '삿포로의 가을' },
+  { date: '2026-10-23', label: 'DAY 3', short: '10.23', weekday: '금', theme: '조잔케이 온천' },
+  { date: '2026-10-24', label: 'DAY 4', short: '10.24', weekday: '토', theme: '오타루 · 운하의 밤' },
+  { date: '2026-10-25', label: 'DAY 5', short: '10.25', weekday: '일', theme: '시장 · 귀국' }
 ];
 let TRIP_DATES = [...DEFAULT_TRIP_DATES];
 
@@ -61,8 +61,8 @@ const CAT = {
 
 const initialData = {
   version: 5,
-  tripStart: '2026-10-22',
-  tripEnd: '2026-10-26',
+  tripStart: '2026-10-21',
+  tripEnd: '2026-10-25',
   currentMember: '이승재',
   exchangeRate: 9.3,
   savedPlaces: [],
@@ -157,11 +157,56 @@ const initialData = {
   ]
 };
 
+const TRANSPORT_PLAN_REVISION = '2026-09-22-air-transport-v2';
+const transportSchedule = (id, data) => ({
+  id, duration: 0, nextTravel: 0, cost: 0, reservation: '확인 필요', reservationTime: '',
+  map: '', official: '', memo: '', ...data
+});
+function applyTransportPlan(snapshot){
+  if(!snapshot || !Array.isArray(snapshot.schedules))return false;
+  const oldStart='2026-10-22',oldEnd='2026-10-26',newStart='2026-10-21',newEnd='2026-10-25';
+  let changed=false;
+  const hasLegacySeedDates=snapshot.tripStart===newStart&&snapshot.tripEnd===newEnd&&!snapshot.transportPlanRevision&&snapshot.schedules.some(item=>item.date===oldEnd);
+  if((snapshot.tripStart===oldStart&&snapshot.tripEnd===oldEnd)||hasLegacySeedDates){
+    [...snapshot.schedules,...(Array.isArray(snapshot.reservations)?snapshot.reservations:[])].forEach(item=>{
+      if(item.date>=oldStart&&item.date<=oldEnd){item.date=shiftDate(item.date,-1);changed=true}
+    });
+    snapshot.tripStart=newStart;snapshot.tripEnd=newEnd;changed=true;
+  }
+  if(snapshot.transportPlanRevision===TRANSPORT_PLAN_REVISION)return changed;
+  const schedules=[
+    transportSchedule('s0',{date:newStart,time:'05:15',end:'05:55',place:'기상·출국 준비',category:'move',description:'세면·짐·여권·탑승권 최종 확인',duration:40,nextTravel:5,transport:'도보',reservation:'불필요',map:'https://maps.google.com/?q=Achasan-ro+405+Gwangjin-gu+Seoul',memo:'권장 기상 05:15 · 집 출발 06:00'}),
+    transportSchedule('s0a',{date:newStart,time:'06:00',end:'06:15',place:'벨라로사 오피스텔 → 광진구의회(건대입구역)',category:'move',description:'6013 승차를 위해 택시 이동',duration:15,nextTravel:11,transport:'택시',map:'https://maps.google.com/?q=Gwangjin-gu+Council+Seoul',memo:'06:15 도착 목표 · 건대입구역 5번 출구 인근 정류장 05694 · 버스까지 11분 여유'}),
+    transportSchedule('s0b',{date:newStart,time:'06:26',end:'07:45',place:'6013 공항버스 → 인천공항 T1',category:'move',description:'광진구의회(건대입구역) 05694 → 인천공항 제1터미널',duration:79,nextTravel:5,transport:'공항버스',map:'https://maps.google.com/?q=Incheon+International+Airport+Terminal+1',official:'https://www.airportlimousine.co.kr/sub/sub01.php?cat_no=19',memo:'현재 시간표 기준 06:26 · 성인 17,000원/인 · 예약 없이 교통카드/현금 탑승 · 출발 전날 재확인'}),
+    transportSchedule('s0c',{date:newStart,time:'07:50',end:'10:05',place:'인천공항 T1 체크인·출국수속',category:'move',description:'수하물 위탁·보안검색·탑승구 이동',duration:135,nextTravel:30,transport:'도보',map:'https://maps.google.com/?q=Incheon+International+Airport+Terminal+1',memo:'WE531 10:35 출발 · 약 2시간 45분 전 공항 도착 계획'}),
+    transportSchedule('s0d',{date:newStart,time:'10:35',end:'13:10',place:'파라타항공 WE531 · 인천 T1 → 신치토세',category:'flight',description:'직항 약 2시간 35분 · 현지 13:10 도착',duration:155,nextTravel:50,transport:'항공',reservation:'예약 예정',reservationTime:'10:35',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://brand.parataair.com/ko',memo:'파라타항공 정기편 스케줄 기준 · 예약번호/e-ticket 최종 확인'}),
+    transportSchedule('s1',{date:newStart,time:'14:00',end:'15:30',place:'신치토세 공항 → 삿포로',category:'move',description:'입국·수하물 수취 후 JR로 삿포로역 이동',duration:90,nextTravel:10,transport:'JR 쾌속 에어포트',cost:1150,reservation:'확인 필요',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://www.jrhokkaido.co.jp/global/',memo:'WE531 13:10 도착 후 입국수속·수하물 수취 포함'}),
+    transportSchedule('s20',{date:newEnd,time:'10:45',end:'12:00',place:'삿포로역 → 신치토세 공항',category:'move',description:'역 이동·대기 포함, JR 쾌속 에어포트로 귀국 공항 이동',duration:75,nextTravel:125,transport:'JR',cost:1150,map:'https://maps.google.com/?q=Sapporo+Station',official:'https://www.jrhokkaido.co.jp/global/',memo:'12:00 공항 도착 목표 · WE532 출발 2시간 5분 전 · JR 세부 열차는 시간표 공개 후 확정'}),
+    transportSchedule('s21',{date:newEnd,time:'14:05',end:'17:30',place:'파라타항공 WE532 · 신치토세 → 인천 T1',category:'flight',description:'동계 스케줄 · 직항 약 3시간 25분',duration:205,nextTravel:50,transport:'항공',reservation:'예약 예정',reservationTime:'14:05',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://brand.parataair.com/ko',memo:'10/25 동계 스케줄 기준 · 입국·수하물 수취 후 공항버스'}),
+    transportSchedule('s22',{date:newEnd,time:'18:59',end:'20:10',place:'6013 공항버스 → 광진구의회(건대입구역)',category:'move',description:'인천공항 T1 1층 6번 승차장 → 광진구의회(건대입구역)',duration:71,nextTravel:5,transport:'공항버스',map:'https://maps.google.com/?q=Gwangjin-gu+Council+Seoul',official:'https://www.airportlimousine.co.kr/sub/sub01.php?cat_no=19',memo:'현재 시간표 기준 T1 18:59 · 입국 지연 시 다음 19:34 차량 · 도로상황에 따라 변동'}),
+    transportSchedule('s23',{date:newEnd,time:'20:15',end:'20:30',place:'광진구의회(건대입구역) → 집',category:'move',description:'정류장에서 벨라로사 오피스텔까지 이동',duration:15,nextTravel:0,transport:'택시',map:'https://maps.google.com/?q=Achasan-ro+405+Gwangjin-gu+Seoul',memo:'귀가 예상 20:30 전후 · 교통상황에 따라 변동'})
+  ];
+  schedules.forEach(item=>{const current=snapshot.schedules.find(schedule=>schedule.id===item.id);if(current)Object.assign(current,item);else snapshot.schedules.push(item);});
+  snapshot.reservations=Array.isArray(snapshot.reservations)?snapshot.reservations:[];
+  const reservations=[
+    {id:'r1',scheduleId:'s0d',place:'파라타항공 WE531 · 출국편',date:newStart,time:'10:35',people:2,booker:MASTER,method:'파라타항공',number:'',link:'https://brand.parataair.com/ko',deadline:'출발 전 e-ticket 확인',note:'인천 T1 → 신치토세 13:10 · 예약번호와 수하물 조건 입력',status:'예약 예정'},
+    {id:'r6',scheduleId:'s21',place:'파라타항공 WE532 · 귀국편',date:newEnd,time:'14:05',people:2,booker:MASTER,method:'파라타항공',number:'',link:'https://brand.parataair.com/ko',deadline:'출발 전 e-ticket 확인',note:'신치토세 14:05 → 인천 T1 17:30 · 10/25 동계 스케줄',status:'예약 예정'}
+  ];
+  reservations.forEach(item=>{const current=snapshot.reservations.find(reservation=>reservation.id===item.id);if(current){const {number,status,booker}=current;Object.assign(current,item);if(number)current.number=number;if(status&&!['예약 예정','조사 필요'].includes(status))current.status=status;if(booker)current.booker=booker}else snapshot.reservations.push(item);});
+  snapshot.checklist=Array.isArray(snapshot.checklist)?snapshot.checklist:[];
+  if(!snapshot.checklist.some(item=>item.id==='c38'))snapshot.checklist.push({id:'c38',category:'예약 · 교통',text:'WE531/WE532 e-ticket·수하물 조건·터미널 최종 확인',due:'출발 전 7일',done:false,urgent:true});
+  if(!snapshot.checklist.some(item=>item.id==='c39'))snapshot.checklist.push({id:'c39',category:'예약 · 교통',text:'6013번 실시간 도착 정보와 귀가 버스 운행 확인',due:'출발 전날',done:false,urgent:true});
+  snapshot.transportPlanRevision=TRANSPORT_PLAN_REVISION;return true;
+}
+applyTransportPlan(initialData);
+
+let focusUpdatedPlan = false;
 let recoveredStorageNotice = '';
 let state = loadState();
 let activeMember = MEMBERS.includes(localStorage.getItem('sapporo-active-member'))?localStorage.getItem('sapporo-active-member'):MASTER;
 let activeDay;
 syncTripDates();
+if(focusUpdatedPlan)activeDay=state.tripStart;
 let activeFoodPriority = 'all';
 let activeFoliageArea = '전체';
 let activeFoliageStatus = '전체 상태';
@@ -217,6 +262,7 @@ function loadState(){
       saved.expenses?.forEach(e=>{e.scope=e.scope||'common';e.owner=e.scope==='personal'?(e.owner||e.payer):'';e.inputCurrency=e.inputCurrency||'JPY';e.inputAmount=Number(e.inputAmount??e.amount);e.participants=e.scope==='personal'?[e.owner]:[...MEMBERS]});
       saved.savedPlaces=Array.isArray(saved.savedPlaces)?saved.savedPlaces:[];
       cleanupLegacyCandidateData(saved);
+      if(applyTransportPlan(saved))focusUpdatedPlan=true;
       persistLocalState(saved,{keepPrevious:false});return saved;
     }
     const migrated = structuredClone(initialData);
@@ -229,6 +275,7 @@ function loadState(){
     migrated.exchangeRate=Number(saved.exchangeRate||localStorage.getItem('sapporo-rate'))||initialData.exchangeRate;
     migrated.tripStart=saved.tripStart||initialData.tripStart;
     migrated.tripEnd=saved.tripEnd||initialData.tripEnd;
+    if(applyTransportPlan(migrated))focusUpdatedPlan=true;
     cleanupLegacyCandidateData(migrated);
     persistLocalState(migrated);return migrated;
   }
@@ -292,13 +339,14 @@ async function loadRemoteState(){
   const {data,error}=await supabaseClient.from('trip_states').select('data,updated_at,revision').eq('trip_id',TRIP_ID).maybeSingle();
   if(error){document.querySelector('#syncText').textContent='서버 연결 실패 · 기기 데이터 사용 중';console.error(error);return}
   if(data?.data){
-    const remoteData=structuredClone(data.data),cleanedLegacyCandidates=cleanupLegacyCandidateData(remoteData),localTime=Date.parse(state.updatedAt||0)||0,remoteTime=Date.parse(remoteData.updatedAt||data.updated_at||0)||0;
+    const remoteData=structuredClone(data.data),cleanedLegacyCandidates=cleanupLegacyCandidateData(remoteData),transportPlanChanged=applyTransportPlan(remoteData),localTime=Date.parse(state.updatedAt||0)||0,remoteTime=Date.parse(remoteData.updatedAt||data.updated_at||0)||0;
     remoteRevision=Number(data.revision)||0;lastSyncedState=structuredClone(data.data);
     if(localTime>remoteTime+1000){state.activity.unshift({member:activeMember,action:'기기의 최신 데이터를 서버에 복구했어요',time:'방금 전'});state.updatedAt=new Date().toISOString();persistLocalState(state);queueServerSnapshot(structuredClone(state));document.querySelector('#syncText').textContent='기기 최신 데이터를 서버에 저장 중…';return}
     state=remoteData;
-    if(cleanedLegacyCandidates){state.activity.unshift({member:activeMember,action:'초기 맛집·술 후보 12개를 정리했어요',time:'방금 전'});state.activity=state.activity.slice(0,20);state.updatedAt=new Date().toISOString()}
+    if(transportPlanChanged)activeDay=state.tripStart;
+    if(cleanedLegacyCandidates||transportPlanChanged){state.activity.unshift({member:activeMember,action:transportPlanChanged?'항공·공항교통 일정을 업데이트했어요':'초기 맛집·술 후보 12개를 정리했어요',time:'방금 전'});state.activity=state.activity.slice(0,20);state.updatedAt=new Date().toISOString()}
     persistLocalState(state);renderAll();
-    if(cleanedLegacyCandidates){queueServerSnapshot(structuredClone(state));document.querySelector('#syncText').textContent='후보 정리 결과를 서버에 저장 중…';toast('초기 맛집·술 후보 12개를 삭제했어요.')}else{document.querySelector('#syncText').textContent='서버 백업과 동기화됨';toast('서버에 보관된 여행 데이터를 불러왔어요.')}
+    if(cleanedLegacyCandidates||transportPlanChanged){queueServerSnapshot(structuredClone(state));document.querySelector('#syncText').textContent=transportPlanChanged?'항공·교통 업데이트를 서버에 저장 중…':'후보 정리 결과를 서버에 저장 중…';toast(transportPlanChanged?'항공·공항교통 일정을 업데이트했어요.':'초기 맛집·술 후보 12개를 삭제했어요.')}else{document.querySelector('#syncText').textContent='서버 백업과 동기화됨';toast('서버에 보관된 여행 데이터를 불러왔어요.')}
   }
   else{const {data:created,error:createError}=await supabaseClient.from('trip_states').insert({trip_id:TRIP_ID,data:state,updated_at:new Date().toISOString(),revision:0}).select('revision').maybeSingle();if(createError)throw createError;remoteRevision=Number(created?.revision)||0;lastSyncedState=structuredClone(state)}
 }
@@ -935,7 +983,7 @@ let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
 if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=13').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=14').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
