@@ -157,7 +157,7 @@ const initialData = {
   ]
 };
 
-const TRANSPORT_PLAN_REVISION = '2026-09-22-air-transport-v2';
+const TRANSPORT_PLAN_REVISION = '2026-09-22-first-day-v3';
 const transportSchedule = (id, data) => ({
   id, duration: 0, nextTravel: 0, cost: 0, reservation: '확인 필요', reservationTime: '',
   map: '', official: '', memo: '', ...data
@@ -175,21 +175,42 @@ function applyTransportPlan(snapshot){
   }
   if(snapshot.transportPlanRevision===TRANSPORT_PLAN_REVISION)return changed;
   const schedules=[
-    transportSchedule('s0',{date:newStart,time:'05:15',end:'05:55',place:'기상·출국 준비',category:'move',description:'세면·짐·여권·탑승권 최종 확인',duration:40,nextTravel:5,transport:'도보',reservation:'불필요',map:'https://maps.google.com/?q=Achasan-ro+405+Gwangjin-gu+Seoul',memo:'권장 기상 05:15 · 집 출발 06:00'}),
-    transportSchedule('s0a',{date:newStart,time:'06:00',end:'06:15',place:'벨라로사 오피스텔 → 광진구의회(건대입구역)',category:'move',description:'6013 승차를 위해 택시 이동',duration:15,nextTravel:11,transport:'택시',map:'https://maps.google.com/?q=Gwangjin-gu+Council+Seoul',memo:'06:15 도착 목표 · 건대입구역 5번 출구 인근 정류장 05694 · 버스까지 11분 여유'}),
-    transportSchedule('s0b',{date:newStart,time:'06:26',end:'07:45',place:'6013 공항버스 → 인천공항 T1',category:'move',description:'광진구의회(건대입구역) 05694 → 인천공항 제1터미널',duration:79,nextTravel:5,transport:'공항버스',map:'https://maps.google.com/?q=Incheon+International+Airport+Terminal+1',official:'https://www.airportlimousine.co.kr/sub/sub01.php?cat_no=19',memo:'현재 시간표 기준 06:26 · 성인 17,000원/인 · 예약 없이 교통카드/현금 탑승 · 출발 전날 재확인'}),
-    transportSchedule('s0c',{date:newStart,time:'07:50',end:'10:05',place:'인천공항 T1 체크인·출국수속',category:'move',description:'수하물 위탁·보안검색·탑승구 이동',duration:135,nextTravel:30,transport:'도보',map:'https://maps.google.com/?q=Incheon+International+Airport+Terminal+1',memo:'WE531 10:35 출발 · 약 2시간 45분 전 공항 도착 계획'}),
+    transportSchedule('s0',{date:newStart,time:'05:45',end:'06:20',place:'기상·출국 준비',category:'move',description:'세면·짐·여권·탑승권 최종 확인',duration:35,nextTravel:5,transport:'도보',reservation:'불필요',map:'https://maps.google.com/?q=Achasan-ro+405+Gwangjin-gu+Seoul',memo:'권장 기상 05:45 · 집 출발 06:25'}),
+    transportSchedule('s0a',{date:newStart,time:'06:25',end:'06:40',place:'벨라로사 오피스텔 → 광진구의회(건대입구역)',category:'move',description:'6013 승차를 위해 택시 이동',duration:15,nextTravel:16,transport:'택시',map:'https://maps.google.com/?q=Gwangjin-gu+Council+Seoul',memo:'06:40 도착 목표 · 건대입구역 5번 출구 인근 정류장 05694 · 버스까지 16분 여유'}),
+    transportSchedule('s0b',{date:newStart,time:'06:56',end:'08:15',place:'6013 공항버스 → 인천공항 T1',category:'move',description:'광진구의회(건대입구역) 05694 → 인천공항 제1터미널',duration:79,nextTravel:5,transport:'공항버스',map:'https://maps.google.com/?q=Incheon+International+Airport+Terminal+1',official:'https://www.airportlimousine.co.kr/sub/sub01.php?cat_no=19',memo:'현재 시간표 기준 06:56 · 성인 17,000원/인 · 예약 없이 교통카드/현금 탑승 · 출발 전날 재확인'}),
+    transportSchedule('s0c',{date:newStart,time:'08:20',end:'10:05',place:'인천공항 T1 체크인·출국수속',category:'move',description:'수하물 위탁·보안검색·탑승구 이동',duration:105,nextTravel:30,transport:'도보',map:'https://maps.google.com/?q=Incheon+International+Airport+Terminal+1',memo:'WE531 10:35 출발 · 약 2시간 20분 전 공항 도착 계획'}),
     transportSchedule('s0d',{date:newStart,time:'10:35',end:'13:10',place:'파라타항공 WE531 · 인천 T1 → 신치토세',category:'flight',description:'직항 약 2시간 35분 · 현지 13:10 도착',duration:155,nextTravel:50,transport:'항공',reservation:'예약 예정',reservationTime:'10:35',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://brand.parataair.com/ko',memo:'파라타항공 정기편 스케줄 기준 · 예약번호/e-ticket 최종 확인'}),
-    transportSchedule('s1',{date:newStart,time:'14:00',end:'15:30',place:'신치토세 공항 → 삿포로',category:'move',description:'입국·수하물 수취 후 JR로 삿포로역 이동',duration:90,nextTravel:10,transport:'JR 쾌속 에어포트',cost:1150,reservation:'확인 필요',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://www.jrhokkaido.co.jp/global/',memo:'WE531 13:10 도착 후 입국수속·수하물 수취 포함'}),
+    transportSchedule('s0e',{date:newStart,time:'13:10',end:'14:05',place:'신치토세 입국·국내선 이동',category:'move',description:'입국심사·수하물 수취 후 연결통로로 국내선 터미널 3F 이동',duration:55,nextTravel:5,transport:'도보',reservation:'불필요',map:'https://maps.google.com/?q=New+Chitose+Airport+Domestic+Terminal',official:'https://www.hokkaido-airports.com/ja/new-chitose/',memo:'국제선 도착 지연 시 라멘 체류시간부터 줄이기'}),
+    transportSchedule('s1a',{date:newStart,time:'14:10',end:'15:00',place:'홋카이도 라멘도장 · 이치겐/유키아카리',category:'food',description:'국내선 3F에서 에비소바 이치겐 또는 삿포로라멘 유키아카리 선택',duration:50,nextTravel:5,transport:'도보',cost:1200,costBasis:'person',reservation:'불필요',map:'https://maps.google.com/?q=Hokkaido+Ramen+Dojo+New+Chitose+Airport',official:'https://www.hokkaido-airports.com/ja/new-chitose/spend/shop/146/',memo:'이치겐 대기가 길면 유키아카리로 바로 전환 · 1인 약 ¥900~1,200',placeId:'p-airport-ramen-dojo',placeSource:'food'}),
+    transportSchedule('s1b',{date:newStart,time:'15:05',end:'15:25',place:'칼비 플러스 · 포테리코',category:'cafe',description:'국내선 2F에서 갓 튀긴 포테리코 간식',duration:20,nextTravel:0,transport:'도보',cost:500,costBasis:'person',reservation:'불필요',map:'https://maps.google.com/?q=Calbee+Plus+New+Chitose+Airport',official:'https://www.hokkaido-airports.com/ja/new-chitose/spend/shop/83/',memo:'포테리코 판매 09:00~18:00',placeId:'p-calbee-cts',placeSource:'saved'}),
+    transportSchedule('s1c',{date:newStart,time:'15:25',end:'15:45',place:'키노토야 · 극상우유 소프트',category:'cafe',description:'국내선 2F 인기 우유 소프트아이스크림',duration:20,nextTravel:0,transport:'도보',cost:590,costBasis:'person',reservation:'불필요',map:'https://maps.google.com/?q=Kinotoya+New+Chitose+Airport',official:'https://www.hokkaido-airports.com/ja/new-chitose/spend/shop/72/',memo:'2026 공항 아이스크림 총선 농후 부문 1위 · ¥590',placeId:'p-kinotoya-cts',placeSource:'saved'}),
+    transportSchedule('s1d',{date:newStart,time:'15:45',end:'16:05',place:'국내선 1F 공항버스 승차 준비',category:'move',description:'승차권 확인 후 ANA 앞 22번 또는 JAL 앞 14번 승차장 이동',duration:20,nextTravel:5,transport:'도보',reservation:'불필요',map:'https://maps.google.com/?q=New+Chitose+Airport+Bus+Stop+22',official:'https://www.chuo-bus.co.jp/airport/timetable/?n=35&o=2&ope=det&t=14',memo:'교통카드·현금·신용카드 터치결제 가능'}),
+    transportSchedule('s1',{date:newStart,time:'16:10',end:'17:18',place:'신치토세 공항 → 스스키노',category:'move',description:'도심 직행 공항연락버스 · 스스키노(남4서3) 하차',duration:68,nextTravel:7,transport:'공항연락버스',cost:1500,costBasis:'person',reservation:'불필요',map:'https://maps.google.com/?q=Susukino+Minami+4+Nishi+3+Bus+Stop',official:'https://www.chuo-bus.co.jp/airport/timetable/?n=35&o=2&ope=det&t=14',memo:'ANA 앞 22번 16:10 / JAL 앞 14번 16:12 · 성인 ¥1,500 · 호텔 현관 앞은 아니며 하차 후 도보 약 5~8분'}),
+    transportSchedule('s1e',{date:newStart,time:'17:25',end:'17:32',place:'스스키노 정류장 → 그랑벨 호텔',category:'move',description:'스스키노(남4서3) 정류장에서 숙소까지 도보 이동',duration:7,nextTravel:3,transport:'도보',reservation:'불필요',map:'https://maps.google.com/?q=Susukino+Granbell+Hotel',official:'https://www.granbellhotel.jp/susukino/access/',memo:'짐이 많거나 우천 시 택시로 짧게 이동'}),
+    transportSchedule('s2',{date:newStart,time:'17:35',end:'18:20',place:'숙박/그랑벨 호텔 스스키노',category:'hotel',description:'체크인·짐 정리·휴식',duration:45,nextTravel:65,transport:'도보',reservation:'예약 예정',reservationTime:'17:35',map:'https://maps.google.com/?q=Susukino+Granbell+Hotel',official:'https://www.granbellhotel.jp/susukino/',memo:'다이코쿠야까지 도보 약 5~10분',placeId:'gm8c91a41a-0901-47c1-9f08-44b07272b3a5',placeSource:'saved'}),
+    transportSchedule('s3',{date:newStart,time:'19:30',end:'21:00',place:'아사히카와 징기스칸 다이코쿠야 삿포로 1호점',category:'food',description:'첫날 저녁 · 예약 좌석 90분',duration:90,nextTravel:15,transport:'도보',cost:6000,costBasis:'person',reservation:'예약 예정',reservationTime:'19:30',map:'https://maps.google.com/?q=Daikokuya+Sapporo+1',official:'https://daikoku-jgs.com/free/sapporo-1go',memo:'19:30 추천 · 공항버스 지연과 체크인 여유 확보 · 예약 15분 초과 시 우선권 상실 가능',placeId:'p-daikokuya-sapporo1',placeSource:'food'}),
     transportSchedule('s20',{date:newEnd,time:'10:45',end:'12:00',place:'삿포로역 → 신치토세 공항',category:'move',description:'역 이동·대기 포함, JR 쾌속 에어포트로 귀국 공항 이동',duration:75,nextTravel:125,transport:'JR',cost:1150,map:'https://maps.google.com/?q=Sapporo+Station',official:'https://www.jrhokkaido.co.jp/global/',memo:'12:00 공항 도착 목표 · WE532 출발 2시간 5분 전 · JR 세부 열차는 시간표 공개 후 확정'}),
     transportSchedule('s21',{date:newEnd,time:'14:05',end:'17:30',place:'파라타항공 WE532 · 신치토세 → 인천 T1',category:'flight',description:'동계 스케줄 · 직항 약 3시간 25분',duration:205,nextTravel:50,transport:'항공',reservation:'예약 예정',reservationTime:'14:05',map:'https://maps.google.com/?q=New+Chitose+Airport',official:'https://brand.parataair.com/ko',memo:'10/25 동계 스케줄 기준 · 입국·수하물 수취 후 공항버스'}),
     transportSchedule('s22',{date:newEnd,time:'18:59',end:'20:10',place:'6013 공항버스 → 광진구의회(건대입구역)',category:'move',description:'인천공항 T1 1층 6번 승차장 → 광진구의회(건대입구역)',duration:71,nextTravel:5,transport:'공항버스',map:'https://maps.google.com/?q=Gwangjin-gu+Council+Seoul',official:'https://www.airportlimousine.co.kr/sub/sub01.php?cat_no=19',memo:'현재 시간표 기준 T1 18:59 · 입국 지연 시 다음 19:34 차량 · 도로상황에 따라 변동'}),
     transportSchedule('s23',{date:newEnd,time:'20:15',end:'20:30',place:'광진구의회(건대입구역) → 집',category:'move',description:'정류장에서 벨라로사 오피스텔까지 이동',duration:15,nextTravel:0,transport:'택시',map:'https://maps.google.com/?q=Achasan-ro+405+Gwangjin-gu+Seoul',memo:'귀가 예상 20:30 전후 · 교통상황에 따라 변동'})
   ];
   schedules.forEach(item=>{const current=snapshot.schedules.find(schedule=>schedule.id===item.id);if(current)Object.assign(current,item);else snapshot.schedules.push(item);});
+  const laterFirstNight=snapshot.schedules.find(item=>item.id==='s4'&&item.date===newStart);
+  if(laterFirstNight&&laterFirstNight.time<'21:15')Object.assign(laterFirstNight,{time:'21:15',end:'23:30',duration:135,memo:`${laterFirstNight.memo||''}${laterFirstNight.memo?' · ':''}다이코쿠야 저녁 후 이동`});
+  snapshot.food=Array.isArray(snapshot.food)?snapshot.food:[];
+  [
+    {id:'p-airport-ramen-dojo',name:'홋카이도 라멘도장 · 이치겐/유키아카리',type:'food',category:'라멘',area:'신치토세공항 국내선 3F',menu:'에비소바 이치겐 또는 삿포로라멘 유키아카리',price:'1인 약 ¥900~1,200',hours:'09:00~21:00 · L.O. 20:30',priority:'must',visit:'10/21 14:10',wait:'이치겐 혼잡 시 유키아카리',reservation:'불필요',reservable:'불필요',map:'https://maps.google.com/?q=Hokkaido+Ramen+Dojo+New+Chitose+Airport',address:'신치토세공항 국내선 터미널 3F',lat:42.7876,lng:141.6817,memo:'두 매장 모두 국내선 3F · 이치겐 대기열이 길면 유키아카리로 전환',votes:0,voted:false,stars:5,coordinatesVerified:true},
+    {id:'p-daikokuya-sapporo1',name:'아사히카와 징기스칸 다이코쿠야 삿포로 1호점',type:'food',category:'징기스칸',area:'스스키노',menu:'다이코쿠 세트 등',price:'1인 약 ¥5,000~6,000',hours:'평일 17:00~23:30 · L.O. 23:00',priority:'must',visit:'10/21 19:30 추천',wait:'예약 권장',reservation:'예약 예정',reservable:'가능',map:'https://maps.google.com/?q=Daikokuya+Sapporo+1',address:'北海道札幌市中央区南4条西2丁目10-6 南4西2ビル2F',lat:43.0554,lng:141.3562,memo:'공식 Toreta 예약 · 좌석 90분',votes:0,voted:false,stars:5,coordinatesVerified:true}
+  ].forEach(item=>{const current=snapshot.food.find(place=>place.id===item.id);if(current)Object.assign(current,item);else snapshot.food.push(item)});
+  snapshot.savedPlaces=Array.isArray(snapshot.savedPlaces)?snapshot.savedPlaces:[];
+  [
+    {id:'p-calbee-cts',name:'칼비 플러스 신치토세공항점',category:'cafe',area:'신치토세공항 국내선 2F',address:'신치토세공항 국내선 터미널 2F',lat:42.7876,lng:141.6817,map:'https://maps.google.com/?q=Calbee+Plus+New+Chitose+Airport',url:'https://www.hokkaido-airports.com/ja/new-chitose/spend/shop/83/',note:'포테리코 09:00~18:00 · 10/21 15:05',coordinatesVerified:true},
+    {id:'p-kinotoya-cts',name:'키노토야 신치토세공항점',category:'cafe',area:'신치토세공항 국내선 2F',address:'신치토세공항 국내선 터미널 2F',lat:42.7876,lng:141.6817,map:'https://maps.google.com/?q=Kinotoya+New+Chitose+Airport',url:'https://www.hokkaido-airports.com/ja/new-chitose/spend/shop/72/',note:'극상우유 소프트 ¥590 · 08:00~20:00 · 10/21 15:25',coordinatesVerified:true}
+  ].forEach(item=>{const current=snapshot.savedPlaces.find(place=>place.id===item.id);if(current)Object.assign(current,item);else snapshot.savedPlaces.push(item)});
   snapshot.reservations=Array.isArray(snapshot.reservations)?snapshot.reservations:[];
   const reservations=[
     {id:'r1',scheduleId:'s0d',place:'파라타항공 WE531 · 출국편',date:newStart,time:'10:35',people:2,booker:MASTER,method:'파라타항공',number:'',link:'https://brand.parataair.com/ko',deadline:'출발 전 e-ticket 확인',note:'인천 T1 → 신치토세 13:10 · 예약번호와 수하물 조건 입력',status:'예약 예정'},
+    {id:'r3',scheduleId:'s3',place:'다이코쿠야 삿포로 1호점',date:newStart,time:'19:30',people:2,booker:MASTER,method:'Toreta 웹 예약',number:'',link:'https://yoyaku.toreta.in/daikokuya-sapporo',deadline:'가능한 즉시',note:'추천 19:30 · 좌석 90분 · 15분 이상 늦으면 현장 대기 손님 우선 가능',status:'예약 예정'},
     {id:'r6',scheduleId:'s21',place:'파라타항공 WE532 · 귀국편',date:newEnd,time:'14:05',people:2,booker:MASTER,method:'파라타항공',number:'',link:'https://brand.parataair.com/ko',deadline:'출발 전 e-ticket 확인',note:'신치토세 14:05 → 인천 T1 17:30 · 10/25 동계 스케줄',status:'예약 예정'}
   ];
   reservations.forEach(item=>{const current=snapshot.reservations.find(reservation=>reservation.id===item.id);if(current){const {number,status,booker}=current;Object.assign(current,item);if(number)current.number=number;if(status&&!['예약 예정','조사 필요'].includes(status))current.status=status;if(booker)current.booker=booker}else snapshot.reservations.push(item);});
@@ -200,6 +221,8 @@ function applyTransportPlan(snapshot){
 }
 applyTransportPlan(initialData);
 
+const LEGACY_FOOD_CANDIDATE_IDS=new Set(['p1','p2','p3','p4','p5','p6']);
+const LEGACY_DRINK_CANDIDATE_IDS=new Set(['d1','d2','d3','d4','d5','d6']);
 let focusUpdatedPlan = false;
 let recoveredStorageNotice = '';
 let state = loadState();
@@ -219,8 +242,6 @@ let mainMap, susukinoMap, mapMarkers = [], drinkMapMarkers = [];
 const openChecklistGroups = new Set(['의류 · 방한']);
 
 function validStoredState(value){return value&&typeof value==='object'&&Array.isArray(value.schedules)&&Array.isArray(value.expenses)&&Array.isArray(value.reservations)}
-const LEGACY_FOOD_CANDIDATE_IDS=new Set(['p1','p2','p3','p4','p5','p6']);
-const LEGACY_DRINK_CANDIDATE_IDS=new Set(['d1','d2','d3','d4','d5','d6']);
 function cleanupLegacyCandidateData(snapshot){
   if(!snapshot||typeof snapshot!=='object')return false;
   const foodBefore=Array.isArray(snapshot.food)?snapshot.food.length:0,drinksBefore=Array.isArray(snapshot.drinks)?snapshot.drinks.length:0;
@@ -279,7 +300,7 @@ function loadState(){
     cleanupLegacyCandidateData(migrated);
     persistLocalState(migrated);return migrated;
   }
-  catch { return structuredClone(initialData); }
+  catch(error){console.warn('여행 데이터 로드 실패:',error);return structuredClone(initialData)}
 }
 function syncTripDates(){
   state.tripStart=state.tripStart||initialData.tripStart;
@@ -983,7 +1004,7 @@ let responsiveTimer;
 window.addEventListener('resize',()=>{clearTimeout(responsiveTimer);responsiveTimer=setTimeout(syncResponsiveUI,100)},{passive:true});
 window.addEventListener('keydown',event=>{if(event.key==='Escape'&&document.querySelector('#sidebar').classList.contains('open'))setMobileMenuOpen(false)});
 if(!PREVIEW_MODE&&'serviceWorker' in navigator&&location.protocol!=='file:'){
-  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=14').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
+  window.addEventListener('load',()=>navigator.serviceWorker.register('./service-worker.js?v=15').catch(error=>console.warn('서비스 워커 등록 실패:',error)));
 }
 
 renderAll();
