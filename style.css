@@ -149,3 +149,4 @@ button:focus-visible,a:focus-visible,input:focus-visible,select:focus-visible,te
 .drinks-hero{margin-inline:0}
 .main-map-layout.list-mode{min-height:0}.main-map-layout.list-mode .map-detail:not([data-place-key]){display:none}.connection-toolbar .search-box{display:flex;align-items:center}.connection-toolbar .search-box input{width:100%;min-width:0}.route-line button.route-stop{border:0;background:transparent;text-align:left}
 .stat-card b em{display:block;white-space:normal;overflow-wrap:anywhere}
+.schedule-main .schedule-note{display:block;margin-top:8px;white-space:pre-line;overflow-wrap:anywhere;line-height:1.5}

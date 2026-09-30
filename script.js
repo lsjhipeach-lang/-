@@ -410,6 +410,7 @@ const won = (n,rate=state.exchangeRate) => `₩${Math.round((Number(n)||0)*(Numb
 const expenseJPY = (expense,rate=state.exchangeRate) => expense.inputCurrency==='KRW' ? Number(expense.inputAmount||0)/(Number(rate)||initialData.exchangeRate) : Number(expense.inputAmount??expense.amount??0);
 const uid = p => `${p}${globalThis.crypto?.randomUUID?.()||`${Date.now().toString(36)}-${Math.random().toString(36).slice(2,10)}`}`;
 const esc = s => String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const linkedMemo = memo => esc(memo).replace(/\[([^\]]+)\]\((https:\/\/[^)\s]+)\)/g,(_,label,url)=>`<a href="${url}" target="_blank" rel="noopener noreferrer">${label}</a>`);
 function toast(message){const el=document.querySelector('#toast');el.textContent=message;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),2200)}
 
 let menuScrollY=0;
@@ -501,7 +502,7 @@ function renderSchedule(){
   const move=items.reduce((a,b)=>a+(Number(b.nextTravel)||0),0),cost=items.reduce((a,b)=>a+(Number(b.cost)||0)*(b.costBasis==='total'?1/MEMBERS.length:1),0),stay=items.reduce((a,b)=>a+(Number(b.duration)||0),0),evening=items.find(s=>s.time>='17:00'&&['food','drink'].includes(s.category)),last=items.at(-1);
   const summary=[['오늘의 핵심 일정',day.theme],['총 예상 이동',`${move}분`],['1인 예상 비용',`${won(cost)} · ${yen(cost)}`],['총 체류시간',`${stay}분`],['저녁 첫 일정',evening?evening.place:'미정'],['마지막 일정',last?`${last.end||last.time} · ${last.place}`:'미정']];
   document.querySelector('#daySummary').innerHTML=summary.map(s=>`<div class="summary-cell"><small>${s[0]}</small><b>${s[1]}</b></div>`).join('');
-  document.querySelector('#scheduleBoard').innerHTML=items.map(s=>`<article class="schedule-row" data-id="${s.id}" data-edit-schedule="${s.id}"><div class="schedule-time"><b>${s.time}</b><small>${s.end}</small></div><i class="category-bar ${s.category}"></i><div class="schedule-main"><b>${esc(s.place)}</b><small>${esc(s.description)}</small></div><div class="schedule-meta"><small>${CAT[s.category]?.label}</small><b>${s.transport} · ${s.duration}분</b></div><span class="tag ${s.reservation==='예약 완료'?'done':s.reservation.includes('필요')?'need':''}">${s.reservation}</span><button class="icon-button" type="button" aria-label="${esc(s.place)} 일정 수정">›</button></article>`).join('')||'<p class="empty-state">일정이 없어요. 새 일정을 추가해보세요.</p>';
+  document.querySelector('#scheduleBoard').innerHTML=items.map(s=>`<article class="schedule-row" data-id="${s.id}" data-edit-schedule="${s.id}"><div class="schedule-time"><b>${s.time}</b><small>${s.end}</small></div><i class="category-bar ${s.category}"></i><div class="schedule-main"><b>${esc(s.place)}</b><small>${esc(s.description)}</small>${s.memo?.includes('https://')?`<small class="schedule-note">${linkedMemo(s.memo)}</small>`:''}</div><div class="schedule-meta"><small>${CAT[s.category]?.label}</small><b>${s.transport} · ${s.duration}분</b></div><span class="tag ${s.reservation==='예약 완료'?'done':s.reservation.includes('필요')?'need':''}">${s.reservation}</span><button class="icon-button" type="button" aria-label="${esc(s.place)} 일정 수정">›</button></article>`).join('')||'<p class="empty-state">일정이 없어요. 새 일정을 추가해보세요.</p>';
 }
 function renderMobileNow(){
   const now=new Date(),today=dateKey(now),clock=`${String(now.getHours()).padStart(2,'0')}:${String(now.getMinutes()).padStart(2,'0')}`,items=state.schedules.filter(item=>item.date===today).sort((a,b)=>a.time.localeCompare(b.time));
@@ -845,6 +846,7 @@ document.addEventListener('click',e=>{
   if(e.target.closest('#activityButton')){renderActivity();document.querySelector('#activityDialog').showModal();return}
   const quickAdd=e.target.closest('#quickAdd');if(quickAdd){const action=quickAdd.dataset.quickAction;if(action==='schedule')openScheduleEditor();else if(action==='foliage')openFoliageEditor();else if(action==='food'||action==='drink')openPlaceEditor(action);else if(action==='maps-import')openMapsImportDialog();else if(action==='expense')openExpenseEditor();else if(action==='booking')openBookingEditor();else if(action==='checklist')addChecklistItem();return}
   if(e.target.closest('[data-action="add-schedule"]')){openScheduleEditor();return}
+  if(e.target.closest('.schedule-note a'))return;
   const sch=e.target.closest('[data-edit-schedule]');if(sch){openScheduleEditor(sch.dataset.editSchedule);return}
   const day=e.target.closest('[data-day]');if(day){activeDay=day.dataset.day;renderSchedule();return}
   const check=e.target.closest('[data-check]');if(check){const c=state.checklist.find(x=>x.id===check.dataset.check);c.done=check.checked;saveState(`${c.text} 항목을 ${c.done?'완료':'미완료'}로 변경했어요`);renderAll();return}
